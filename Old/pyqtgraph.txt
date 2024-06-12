@@ -1,0 +1,1 @@
+Pour afficher des graphes en temps réel: pyqtgraph
