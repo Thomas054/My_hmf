@@ -1,4 +1,4 @@
-from my_hmf import My_Tinker08
+from my_hmf_faux import My_Tinker08
 import numpy as np
 import matplotlib.pyplot as plt
 

@@ -19,6 +19,9 @@ mf = MassFunction(hmf_model="Tinker08", Mmin=13)
 
 # print(mf.quantities_available())
 print(MassFunction.get_all_parameter_defaults(recursive=False))
+cosmology = mf.cosmo_params
+for e in cosmology:
+    print(e, cosmology[e])
 
 
 # print([e for e in mf.power])
@@ -39,20 +42,21 @@ print(MassFunction.get_all_parameter_defaults(recursive=False))
 
 # print(Transfer.get_all_parameter_defaults())
 print(mf.cosmo_params)
+print(mf.quantities_available())
 
 
-mf = MassFunction(
-    Mmin=13
-)  # Note how to set all cosmological parameters (except sigma_8 and n) to a given common cosmology
+# mf = MassFunction(
+#     Mmin=13
+# )  # Note how to set all cosmological parameters (except sigma_8 and n) to a given common cosmology
 
-for z in [0, 0.7, 1.4, 2]:
-    mf.update(z=z)
-    plt.plot(mf.m, mf.dndm, label=f"z = {z}")
+# for z in [0, 0.7, 1.4, 2]:
+#     mf.update(z=z)
+#     plt.plot(mf.m, mf.dndm, label=f"z = {z}")
 
-plt.xscale("log")
-plt.yscale("log")
+# plt.xscale("log")
+# plt.yscale("log")
 
-plt.xlabel(r"Masse, $[h^{-1}M_\odot]$", size=11)
-plt.ylabel(r"$dn/dM$, $[h^{4}{\rm Mpc}^{-3}M_\odot^{-1}]$", size=11)
-plt.legend()
-plt.show()
+# plt.xlabel(r"Masse, $[h^{-1}M_\odot]$", size=11)
+# plt.ylabel(r"$dn/dM$, $[h^{4}{\rm Mpc}^{-3}M_\odot^{-1}]$", size=11)
+# plt.legend()
+# plt.show()

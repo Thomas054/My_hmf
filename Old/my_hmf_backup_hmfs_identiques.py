@@ -22,7 +22,7 @@ GSI = 6.67430e-11  # m^3 kg^-1 s^-2
 G = GSI * MSun / Mparsec_to_m**3  # Mpc^3 MSun^-1 s^-2
 cSI = 3.0e8  # m s^-1
 c = cSI / Mparsec_to_m  # Mpc s^-1
-N = 1000  # Nombre de points pour les courbes
+N = 1024  # Nombre de points pour les courbes
 
 
 class My_MassFunction:
@@ -157,7 +157,7 @@ class My_Tinker08(My_MassFunction):
         super().__init__(z, cosmo_params)
 
         ## Paramètres de la fonction f ##
-        self.alpha = np.exp(-((0.75 / np.log(self.delta / 75)) ** 1.2))
+        self.alpha = 10 ** (-((0.75 / np.log10(self.delta / 75)) ** 1.2))
         self.A = 0.186 * (1 + self.z) ** (-0.14)
         self.a = 1.47 * (1 + self.z) ** (-0.06)
         self.b = 2.57 * (1 + self.z) ** (-self.alpha)

@@ -40,7 +40,7 @@ GSI = 6.67430e-11  # m^3 kg^-1 s^-2
 G = GSI * MSun / Mparsec_to_m**3  # Mpc^3 MSun^-1 s^-2
 cSI = 3.0e8  # m s^-1
 c = cSI / Mparsec_to_m  # Mpc s^-1
-N = 2000  # Nombre de points pour les courbes
+N = 1000  # Nombre de points pour les courbes
 
 
 Neff = 3.046
@@ -62,12 +62,11 @@ if BCemuOK:
     }
 
 cosmo_params = {
-    "H0": 70,
-    "Om0": 0.294,
-    "Ob0": 0.022 / 0.7**2,
+    "H0": 67.74,
+    "Om0": 0.3075,
+    "Ob0": 0.0486,
 }
-
-n = 0.965
+n = 0.9667
 
 
 class My_MassFunction:
@@ -126,35 +125,19 @@ class My_MassFunction:
     def m(self):
         return self._m
 
-    # def get_k_Pk_camb(self):
-    #     pars = camb.CAMBparams()
-    #     pars.set_cosmology(
-    #         H0=self.H0classique,
-    #         ombh2=self.Ob0 * self.h**2,
-    #         omch2=self.Odm0 * self.h**2,
-    #         # omk=0,
-    #         # nnu=Neff,
-    #         # standard_neutrino_neff=Neff,
-    #         # TCMB=Tcmb0,
-    #     )
-    #     pars.InitPower.set_params(ns=self.n)
-    #     pars.set_matter_power(redshifts=[self.z], kmax=self.kmax * self.h)
-
-    #     # Linear spectra
-    #     pars.NonLinear = model.NonLinear_none
-    #     results = camb.get_results(pars)
-    #     k, _, Pk = results.get_matter_power_spectrum(
-    #         minkh=self.kmin, maxkh=self.kmax, npoints=N
-    #     )
-    #     return k, Pk[0]
-
     def get_k_Pk_camb(self):
-        Omega_b = self.Ob0 * self.h**2
-        Omega_dm = self.Odm0 * self.h**2
         pars = camb.CAMBparams()
-        pars.set_cosmology(H0=self.H0classique, ombh2=Omega_b, omch2=Omega_dm)
+        pars.set_cosmology(
+            H0=self.H0classique,
+            ombh2=self.Ob0 * self.h**2,
+            omch2=self.Odm0 * self.h**2,
+            # omk=0,
+            # nnu=Neff,
+            # standard_neutrino_neff=Neff,
+            # TCMB=Tcmb0,
+        )
         pars.InitPower.set_params(ns=self.n)
-        pars.set_matter_power(redshifts=[self.z], kmax=2.0)
+        pars.set_matter_power(redshifts=[self.z], kmax=self.kmax * self.h)
 
         # Linear spectra
         pars.NonLinear = model.NonLinear_none
@@ -163,6 +146,22 @@ class My_MassFunction:
             minkh=self.kmin, maxkh=self.kmax, npoints=N
         )
         return k, Pk[0]
+
+    # def get_k_Pk_camb(self):
+    #     Omega_b = self.Ob0 * self.h**2
+    #     Omega_dm = self.Odm0 * self.h**2
+    #     pars = camb.CAMBparams()
+    #     pars.set_cosmology(H0=self.H0classique, ombh2=Omega_b, omch2=Omega_dm)
+    #     pars.InitPower.set_params(ns=self.n)
+    #     pars.set_matter_power(redshifts=[self.z], kmax=self.kmax * self.h)
+
+    #     # Linear spectra
+    #     pars.NonLinear = model.NonLinear_none
+    #     results = camb.get_results(pars)
+    #     k, _, Pk = results.get_matter_power_spectrum(
+    #         minkh=self.kmin * self.h, maxkh=self.kmax * self.h, npoints=N
+    #     )
+    #     return k, Pk[0]
 
     @property
     def k(self):
@@ -302,19 +301,15 @@ class My_Tinker08(My_MassFunction):
 
 mf = MassFunction(
     hmf_model="Tinker08",
-    # transfer_model="CAMB",
-    # cosmo_params={
-    #     "H0": 67.74,
-    #     "Om0": 0.3075,
-    #     "Ob0": 0.0286,
-    #     # "n": 0.9667,
-    # },
+    transfer_model="CAMB",
+    cosmo_params=cosmo_params,
+    n=n,
     Mmin=13,
     lnk_min=np.log(1e-4),
     lnk_max=np.log(1),
     z=0,
 )
-my_mf = My_Tinker08(z=0)
+my_mf = My_Tinker08()
 
 # L_z = [0,0.7,1.4,2] # ,1.5,1.6,1.7,1.8,1.9
 # for z in L_z:
@@ -330,6 +325,13 @@ my_mf = My_Tinker08(z=0)
 #     lnk_max=np.log(1),
 
 
+# plt.plot(mf.k, mf.power)
+# plt.plot(my_mf.k, my_mf.Pk)
+# plt.xscale("log")
+# plt.yscale("log")
+# plt.show()
+
+
 # ## Test P(k)
 # plt.xscale("log")
 # plt.yscale("log")
@@ -339,7 +341,46 @@ my_mf = My_Tinker08(z=0)
 # plt.show()
 
 
-# # Overplotting
+# ## Test P(k)
+plt.xscale("log")
+plt.yscale("log")
+plt.plot(mf.k, mf.power, label="hmf")
+plt.plot(my_mf.k, my_mf.Pk, label="my_hmf")
+plt.legend()
+plt.show()
+
+# plt.plot(mf.k, my_mf.Pk / mf.power)
+# plt.show()
+
+# ## Test sigma
+print(my_mf.sigma_8)
+plt.plot(mf.m, mf.sigma, label="hmf")
+plt.plot(my_mf.m, my_mf.sigma, label="my_hmf")
+plt.xscale("log")
+plt.legend()
+plt.show()
+
+
+# ## Test fsigma
+plt.plot(mf.sigma, mf.fsigma, label="hmf")
+plt.plot(my_mf.sigma, my_mf.fsigma, label="my_hmf")
+plt.legend()
+plt.show()
+
+
+# ## Test dndm
+plt.xscale("log")
+plt.yscale("log")
+plt.plot(mf.m, mf.dndm, label="hmf")
+plt.plot(my_mf.m, my_mf.dndm, label="my_hmf")
+plt.legend()
+plt.show()
+
+# print(mf.mean_density0)
+# print(my_mf.rho_m_Masse)
+
+
+# ## Overplotting
 # fig, ax = plt.subplots()
 # colors = {0: "b", 0.7: "y", 1.4: "g", 2: "r"}
 # for z in [0, 0.7, 1.4, 2]:
