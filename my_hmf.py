@@ -49,8 +49,6 @@ Tcmb0 = 2.7255  # K
 # Effets baryoniques
 if BCemuOK:
     Giri = {
-        "effect": "Giri",
-        "params": {
             "log10Mc": 13.32,
             "mu": 0.93,
             "thej": 4.235,
@@ -58,7 +56,6 @@ if BCemuOK:
             "delta": 6.40,
             "eta": 0.15,
             "deta": 0.14,
-        },
     }
 
 cosmo_params = {
@@ -77,6 +74,7 @@ class My_MassFunction:
         cosmo_params,
         n,
         baryons_effect,
+        baryons_params,
         Mmin,
         Mmax,
         kmin,
@@ -109,6 +107,7 @@ class My_MassFunction:
         self.kmax = kmax  # h/Mpc
 
         self.baryons_effect = baryons_effect
+        self.baryons_params = baryons_params
 
         self._m = np.linspace(10**self.Mmin, 10**self.Mmax, N)
         self._k = None
@@ -159,7 +158,7 @@ class My_MassFunction:
     @property
     def Pk(self):
         if self._Pk is None:
-            if self.baryons_effect["effect"] == "Giri":
+            if self.baryons_effect == "Giri":
                 if not BCemuOK:
                     print(
                         "Erreur: BCemu n'est pas installé. Impossible de calculer l'effet des baryons."
@@ -167,13 +166,13 @@ class My_MassFunction:
                     self._Pk = self.Pk_camb
                 else:
                     bfcemu = BCemu.BCM_7param(Ob=self.Ob0, Om=self.Om0)
-                    bcmdict = self.baryons_effect["params"]
+                    bcmdict = self.baryons_params
                     P_quotient = bfcemu.get_boost(self.z, bcmdict, self.k)
                     self._Pk = P_quotient * self.Pk_camb
-            elif self.baryons_effect["effect"] == "Aucun":
+            elif self.baryons_effect == "Aucun":
                 self._Pk = self.Pk_camb
             else:
-                effect = self.baryons_effect["effect"]
+                effect = self.baryons_effect
                 print(f"Erreur: Effet des baryons {effect} inconnu.")
                 self._Pk = self.Pk_camb
 
@@ -214,7 +213,8 @@ class My_Tinker08(My_MassFunction):
         z=0,
         cosmo_params=cosmo_params,
         n=n,
-        baryons_effect={"effect": "Aucun"},
+        baryons_effect="Aucun",
+        baryons_params = {},
         delta=200,
         Mmin=13,
         Mmax=15,
@@ -226,6 +226,7 @@ class My_Tinker08(My_MassFunction):
             cosmo_params=cosmo_params,
             n=n,
             baryons_effect=baryons_effect,
+            baryons_params=baryons_params,
             Mmin=Mmin,
             Mmax=Mmax,
             kmin=kmin,
