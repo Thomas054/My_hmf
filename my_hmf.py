@@ -231,7 +231,8 @@ class My_Tinker08(My_MassFunction):
             kmin=kmin,
             kmax=kmax,
         )
-
+        
+        self.delta = delta
         ## Paramètres de la fonction f ##
         self.alpha = 10 ** (-((0.75 / np.log10(self.delta / 75)) ** 1.2))
         self.A = 0.1858659 * (1 + self.z) ** (-0.14)

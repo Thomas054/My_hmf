@@ -42,30 +42,30 @@ Girimax = {
 }
 
 
-# mf = My_Tinker08()
-# mfG = My_Tinker08(baryons_effect=Giri)
+mf = My_Tinker08()
+mfG = My_Tinker08(baryons_effect=Giri)
 
 
 # # On vérifie qu'on retrouve bien la courbe de l'article de Giri
 # plt.loglog(mf.k,mfG.Pk/mf.Pk)
 # plt.show()
 
-# ## Test dndm
-# plt.plot(mfG.M, mfG.dndm, label="hmf de Giri")
-# plt.plot(mf.M, mf.dndm, label="my_hmf")
-# plt.xlabel(r"Masse ($h^{-1} M_\odot$)")
-# plt.xscale("log")
-# plt.yscale("log")
-# plt.legend()
-# plt.show()
+## Test dndm
+plt.plot(mfG.M, mfG.dndm, label="hmf de Giri")
+plt.plot(mf.M, mf.dndm, label="my_hmf")
+plt.xlabel(r"Masse ($h^{-1} M_\odot$)")
+plt.xscale("log")
+plt.yscale("log")
+plt.legend()
+plt.show()
 
-# ## Rapport des fonctions de masse
-# plt.plot(mf.M,mfG.dndm/mf.dndm - 1)
-# plt.plot(mf.M,np.zeros(len(mf.M)), linestyle="--", color="grey", linewidth=0.5)
-# plt.xscale("log")
-# plt.xlabel("Masse")
-# plt.ylabel("Giri / classique - 1")
-# plt.show()
+## Rapport des fonctions de masse
+plt.plot(mf.M,mfG.dndm/mf.dndm - 1)
+plt.plot(mf.M,np.zeros(len(mf.M)), linestyle="--", color="grey", linewidth=0.5)
+plt.xscale("log")
+plt.xlabel("Masse")
+plt.ylabel("Giri / classique - 1")
+plt.show()
 
 
 ## On fait varier z
