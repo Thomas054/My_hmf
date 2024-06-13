@@ -77,7 +77,6 @@ class My_MassFunction:
         cosmo_params,
         n,
         baryons_effect,
-        delta,
         Mmin,
         Mmax,
         kmin,
@@ -104,7 +103,6 @@ class My_MassFunction:
             self.Om0 * self.rho_c / self.h**2
         )  # h^2 MSun Mpc^-1 s^-2 (densité d'ENERGIE)
         self.rho_m_Masse = self.rho_m / c**2  # h**2 MSun Mpc^-3 (densité de MASSE)
-        self.delta = delta  # Surdensité critique à z=0
         self.Mmin = Mmin  # Puissance de 10 dans la masse minimale considérée, en h^-1 . MasseSolaire
         self.Mmax = Mmax  # Puissance de 10 dans la masse maximale considérée, en h^-1 . MasseSolaire
         self.kmin = kmin  # h/Mpc
@@ -126,33 +124,11 @@ class My_MassFunction:
     def m(self):
         return self._m
 
-    # def get_k_Pk_camb(self):
-    #     pars = camb.CAMBparams()
-    #     pars.set_cosmology(
-    #         H0=self.H0classique,
-    #         ombh2=self.Ob0 * self.h**2,
-    #         omch2=self.Odm0 * self.h**2,
-    #         # omk=0,
-    #         # nnu=Neff,
-    #         # standard_neutrino_neff=Neff,
-    #         # TCMB=Tcmb0,
-    #     )
-    #     pars.InitPower.set_params(ns=self.n)
-    #     pars.set_matter_power(redshifts=[self.z], kmax=self.kmax * self.h)
-
-    #     # Linear spectra
-    #     pars.NonLinear = model.NonLinear_none
-    #     results = camb.get_results(pars)
-    #     k, _, Pk = results.get_matter_power_spectrum(
-    #         minkh=self.kmin, maxkh=self.kmax, npoints=N
-    #     )
-    #     return k, Pk[0]
-
     def get_k_Pk_camb(self):
-        Omega_b = self.Ob0 * self.h**2
-        Omega_dm = self.Odm0 * self.h**2
         pars = camb.CAMBparams()
-        pars.set_cosmology(H0=self.H0classique, ombh2=Omega_b, omch2=Omega_dm)
+        pars.set_cosmology(
+            H0=self.H0classique, ombh2=self.Ob0 * self.h**2, omch2=self.Odm0 * self.h**2
+        )
         pars.InitPower.set_params(ns=self.n)
         pars.set_matter_power(redshifts=[self.z], kmax=2.0)
 
@@ -250,7 +226,6 @@ class My_Tinker08(My_MassFunction):
             cosmo_params=cosmo_params,
             n=n,
             baryons_effect=baryons_effect,
-            delta=delta,
             Mmin=Mmin,
             Mmax=Mmax,
             kmin=kmin,
@@ -298,75 +273,3 @@ class My_Tinker08(My_MassFunction):
             derivee = np.gradient(ln_sigma, self.m)
             self._dndm = self.fsigma * self.rho_m_Masse / self.m * np.abs(derivee)
         return self._dndm
-
-
-mf = MassFunction(
-    hmf_model="Tinker08",
-    # transfer_model="CAMB",
-    # cosmo_params={
-    #     "H0": 67.74,
-    #     "Om0": 0.3075,
-    #     "Ob0": 0.0286,
-    #     # "n": 0.9667,
-    # },
-    Mmin=13,
-    lnk_min=np.log(1e-4),
-    lnk_max=np.log(1),
-    z=0,
-)
-my_mf = My_Tinker08(z=0)
-
-# L_z = [0,0.7,1.4,2] # ,1.5,1.6,1.7,1.8,1.9
-# for z in L_z:
-#     mf = My_Tinker08(z=z,kmin=0.034,kmax=1)
-#     mfG = My_Tinker08(z=z,baryons_effect=Giri,kmin=0.034,kmax=1)
-#     plt.plot(mf.M,mfG.dndm/mf.dndm - 1, label=f"z={z}")
-#     plt.plot(mf.M,np.zeros(len(mf.M)), linestyle="--", color="grey", linewidth=0.5)
-# plt.legend()
-# plt.xscale("log")
-# plt.xlabel("Masse")
-# plt.ylabel("Giri / classique - 1")
-# plt.show()
-#     lnk_max=np.log(1),
-
-
-# ## Test P(k)
-# plt.xscale("log")
-# plt.yscale("log")
-# plt.plot(my_mfGiri.k, my_mfGiri.Pk, label="hmf")
-# plt.plot(my_mf.k, my_mf.Pk, label="my_hmf")
-# plt.legend()
-# plt.show()
-
-
-# # Overplotting
-# fig, ax = plt.subplots()
-# colors = {0: "b", 0.7: "y", 1.4: "g", 2: "r"}
-# for z in [0, 0.7, 1.4, 2]:
-#     my_mf = My_Tinker08(z=z)
-#     mf = MassFunction(
-#         hmf_model="Tinker08",
-#         Mmin=13,
-#         z=z,
-#         cosmo_params={
-#             "H0": 67.74,
-#             "Om0": 0.3075,
-#             "Ob0": 0.0486,
-#             # "n": 0.9667,
-#         },
-#     )
-#     plt.plot(my_mf.m, my_mf.dndm, "--", color=colors[z], linewidth=2)
-#     plt.plot(mf.m, mf.dndm, label=f"z = {z}", color=colors[z], linewidth=2)
-# plt.plot([], [], label="hmf", color="black", linestyle="--", linewidth=2)
-# plt.plot([], [], label="mon code", color="black", linewidth=2)
-# plt.xlabel(r"Masse ($h^{-1}$ M$_\odot$)", size=15)
-# plt.ylabel(r"$\dfrac{dn}{dM}$ (Mpc$^{-3}$ $h$M$_\odot^{-1}$)", size=15)
-# plt.xscale("log")
-# plt.yscale("log")
-# plt.legend(fontsize=12)
-# plt.tick_params(axis="both", labelsize=12)
-# # for tick in ax.xaxis.get_major_ticks():
-# #     tick.label.set_fontsize(12)
-# # for tick in ax.yaxis.get_major_ticks():
-# #     tick.label.set_fontsize(12)
-# plt.show()
