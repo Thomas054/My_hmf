@@ -116,7 +116,6 @@ class My_MassFunction:
         self._sigma = None
         self._sigma_8 = None
         self._fsigma = None
-        self._fsigma = None
         self._dndm = None
 
     @property
@@ -235,12 +234,42 @@ class My_Tinker08(My_MassFunction):
         
         self.delta = delta
         ## Paramètres de la fonction f ##
-        self.alpha = 10 ** (-((0.75 / np.log10(self.delta / 75)) ** 1.2))
-        self.A = 0.1858659 * (1 + self.z) ** (-0.14)
-        self.a = 1.466904 * (1 + self.z) ** (-0.06)
-        self.b = 2.571104 * (1 + self.z) ** (-self.alpha)
-        self.c = 1.193958
+        self._alpha = None
+        self._A = None
+        self._a = None
+        self._b = None
+        self._c = None
 
+    @property
+    def alpha(self):
+        if self._alpha is None:
+            self._alpha = 10 ** (-((0.75 / np.log10(self.delta / 75)) ** 1.2))
+        return self._alpha
+    
+    @property
+    def A(self):
+        if self._A is None:
+            self._A = 0.1858659 * (1 + self.z) ** (-0.14)
+        return self._A
+    
+    @property
+    def a(self):
+        if self._a is None:
+            self._a = 1.466904 * (1 + self.z) ** (-0.06)
+        return self._a
+    
+    @property
+    def b(self):
+        if self._b is None:
+            self._b = 2.571104 * (1 + self.z) ** (-self.alpha)
+        return self._b
+    
+    @property
+    def c(self):
+        if self._c is None:
+            self._c = 1.193958
+        return self._c
+    
     @property
     def sigma(self):
         if self._sigma is None:
@@ -275,3 +304,48 @@ class My_Tinker08(My_MassFunction):
             derivee = np.gradient(ln_sigma, self.m)
             self._dndm = self.fsigma * self.rho_m_Masse / self.m * np.abs(derivee)
         return self._dndm
+    
+    def set_z(self, z):
+        self.z = z
+        self._Pk = None
+        self._Pk_camb = None
+        self._sigma = None
+        self._fsigma = None
+        self._dndm = None
+        self._sigma_8 = None
+        self._alpha = None
+        self._A = None
+        self._a = None
+        self._b = None
+        self._c = None
+    
+    
+    @property
+    def number_count(self, N, zmax):
+        res = np.zeros(N)
+        for i in range(N):
+            z = zmax * i / N
+            L_z = np.linspace(z, z+zmax/N, N)
+            L_intgs = np.zeros(N)
+            for j in range(N):
+                L_intgs[j] = intg.trapz(self.dndm, self.m)
+                self.set_z(z)
+                L_intgs[j] = intg.trapz(self.dndm, self.m)
+            res[i] = intg.trapz(L_intgs, L_z)
+
+
+# class Etude():
+#     def __init__(
+#         self,
+#         z=0,
+#         cosmo_params=cosmo_params,
+#         n=n,
+#         baryons_effect="Aucun",
+#         baryons_params = {},
+#         delta=200,
+#         Mmin=13,
+#         Mmax=15,
+#         kmin=1e-4,
+#         kmax=1,
+#     ):
+#         pass
