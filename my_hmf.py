@@ -342,7 +342,7 @@ def get_number_count(cosmo_params, N, zmax):
         z = zmax * i / N
         mf.set_z(z)
         res[i] = intg.trapz(mf.dndm, mf.m)
-    return res
+    return np.linspace(0, zmax, N), res
 
 
 def calc_chi2(data, model, std):
@@ -352,17 +352,17 @@ def calc_chi2(data, model, std):
 
 
 class Study():
-    def __init__(self, N, zmax, computedpars, knownpars = cosmo_params): 
+    def __init__(self, N_z, zmax, computedpars, knownpars = cosmo_params): 
         """
         Initializes the study.
         Args:
-            N (int): number of points for the redshifts (number count)
+            N_z (int): number of points for the redshifts (used for number count)
             zmax (float): maximum redshift
             computedpars (list[str]): list of the names of the parameters to compute
             knownpars (dict, optional): Permet d'avoir une valeurs pour les paramètres cosmologiques fixés. Peut contenir aussi des paramètres non fixés. Defaults to cosmo_params.
         """
-        self.z = np.linspace(0, zmax, N)
-        self.N = N
+        self.z = np.linspace(0, zmax, N_z)
+        self.N_z = N_z
         self.zmax = zmax
         self.computedpars = computedpars
         self.knownpars = knownpars
@@ -389,7 +389,7 @@ class Study():
     
     
     def create_artificial_data(self, cosmo_params):
-        self._data = get_number_count(cosmo_params, self.N, self.zmax)
+        _, self._data = get_number_count(cosmo_params, self.N_z, self.zmax)
         self._std = 0.1 * self._data
     
     @property
@@ -400,39 +400,60 @@ class Study():
     
     @property
     def std(self):
-        if self.std is None:
+        if self._std is None:
             raise ValueError("No data found. Please run create_artificial_data or provide real data.")
-        return self.std
+        return self._std
         
     def update_params(self, theta):
         for i in range(len(theta)):
             self.cosmo_params[self.computedpars[i]] = theta[i]
     
-    def calc_params(self, theta_i):
-        """theta_i est le vecteur initial des paramètres à ajuster."""
+    def calc_params(self, theta_i, N, step):
+        """
+        Computes the parameters.
+        Args:
+            theta_i (list[str]): Initial guess for the parameters to compute
+            N (int): Number of iterations
+            step (list[float]): Step for the parameters
+        
+        Returns:
+            L_pars, L_chi2 (list[list[float]], list[float]): Respectively the parameters and the chi_2 associated for each iteration.\\
+            `L_pars[:,j]` contains the values of the parameter j for each iteration. (so the tab is tall but not very large)
+        """
+        # TODO: garder en mémoire les paramètres "parcourus" et les chi_2 associés
+        # TODO: mettre des bornes pour chaque paramètre, et si une valeur les dépasse, prendre une autre valeur aléatoire
         if self._data is None:
             raise ValueError("No data to fit. Please run create_artificial_data or provide real data.")
+        L_pars = np.zeros((N,len(theta_i)))
+        L_chi2 = np.zeros(N)
         self.update_params(theta_i)
         theta_prec = np.copy(theta_i)
-        model = get_number_count(self.cosmo_params, self.N, self.zmax)
+        print(theta_prec)
+        _, model = get_number_count(self.cosmo_params, self.N_z, self.zmax)
         chi2_prec = calc_chi2(self.data, model, self.std)
+        print(chi2_prec)
+        L_pars[0] = theta_prec
+        L_chi2[0] = chi2_prec
         burning = True
         i = 0
         while burning:
-            theta_new = np.random.normal(theta_prec, 0.01 * theta_prec)
+            i += 1
+            theta_new = np.random.normal(theta_prec, step)
             print(theta_new)
             self.update_params(theta_new)
-            model = get_number_count(self.cosmo_params, self.N, self.zmax)
+            _, model = get_number_count(self.cosmo_params, self.N_z, self.zmax)
             chi2_new = calc_chi2(self.data, model, self.std)
             print(chi2_new)
-            if chi2_new < chi2_prec:
+            x = np.random.uniform()
+            if x < chi2_prec/chi2_new:
                 theta_prec = np.copy(theta_new)
                 chi2_prec = chi2_new
                 print("Kept !")
-            i += 1
-            if i > 100 or chi2_new < 1:
+            L_pars[i] = theta_prec
+            L_chi2[i] = chi2_prec
+            if i >= N-1:
                 burning = False
-        return theta_new
+        return L_pars, L_chi2
             
 
 
@@ -440,18 +461,19 @@ class Study():
 
 
 
-# cosmo_params = {
-#     "H0": 70,
-#     "Om0": 0.294,
-#     "Ob0": 0.022 / 0.7**2,
-# }
 
-# N = 5
+# N_z = 5
 # zmax = 1
 
-# thetai = [cosmo_params["Om0"]]
 
-# s = Study(N,zmax,cosmo_params)
+
+
+# s = Study(N_z,zmax, ["Om0","As"], knownpars = cosmo_params)
 # s.create_artificial_data(cosmo_params)
 
-# s.calc_params(thetai)
+# thetai = thetai = [cosmo_params["Om0"],cosmo_params["As"]]
+# res = s.calc_params(thetai)
+
+# print("\n")
+# print(f"Le vrai : {cosmo_params['Om0']}")
+# print(f"Résultat : {res}")
