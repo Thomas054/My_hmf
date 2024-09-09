@@ -62,9 +62,11 @@ cosmo_params = {
     "H0": 70,
     "Om0": 0.294,
     "Ob0": 0.022 / 0.7**2,
+    "ns": 0.965,
+    "As": 2e-9
 }
 
-n = 0.965
+
 
 
 class My_MassFunction:
@@ -72,7 +74,6 @@ class My_MassFunction:
         self,
         z,
         cosmo_params,
-        n,
         baryons_effect,
         baryons_params,
         Mmin,
@@ -87,7 +88,8 @@ class My_MassFunction:
         self.Ob0 = cosmo_params["Ob0"]
         self.Odm0 = self.Om0 - self.Ob0
         # self.Odm0 = 0.122 / 0.7**2
-        self.n = n
+        self.ns = cosmo_params["ns"]
+        self.As = cosmo_params["As"]
         self.H0classique = cosmo_params["H0"]
         self.H0 = (
             self.H0classique * 1000 / Mparsec_to_m
@@ -127,7 +129,7 @@ class My_MassFunction:
         pars.set_cosmology(
             H0=self.H0classique, ombh2=self.Ob0 * self.h**2, omch2=self.Odm0 * self.h**2
         )
-        pars.InitPower.set_params(ns=self.n)
+        pars.InitPower.set_params(ns=self.ns, As=self.As)
         pars.set_matter_power(redshifts=[self.z], kmax=2.0)
 
         # Linear spectra
@@ -211,7 +213,6 @@ class My_Tinker08(My_MassFunction):
         self,
         z=0,
         cosmo_params=cosmo_params,
-        n=n,
         baryons_effect="Aucun",
         baryons_params = {},
         delta=200,
@@ -223,7 +224,6 @@ class My_Tinker08(My_MassFunction):
         super().__init__(
             z=z,
             cosmo_params=cosmo_params,
-            n=n,
             baryons_effect=baryons_effect,
             baryons_params=baryons_params,
             Mmin=Mmin,
@@ -320,32 +320,138 @@ class My_Tinker08(My_MassFunction):
         self._c = None
     
     
+    # @property
+    # def number_count(self, N, zmax):
+    #     # On intègre dndm sur M puis sur z
+    #     res = np.zeros(N)
+    #     for i in range(N):
+    #         z = zmax * i / N
+    #         L_z = np.linspace(z, z+zmax/N, N)   # Prendre N pour le nombre de points est totalement arbitraire ici
+    #         L_intgs = np.zeros(N)   # Liste des intégrales sur M en fonction de z
+    #         for j in range(N):
+    #             self.set_z(L_z[j])
+    #             L_intgs[j] = intg.trapz(self.dndm, self.m)
+    #         res[i] = intg.trapz(L_intgs, L_z)
+    #     return res
+
+def get_number_count(cosmo_params, N, zmax):
+    mf = My_Tinker08(z=0, cosmo_params=cosmo_params)
+    # On intègre dndm sur M puis sur z
+    res = np.zeros(N)
+    for i in range(N):
+        z = zmax * i / N
+        mf.set_z(z)
+        res[i] = intg.trapz(mf.dndm, mf.m)
+    return res
+
+
+def calc_chi2(data, model, std):
+    return np.sum((data - model)**2 / std**2)
+
+
+
+
+class Study():
+    def __init__(self, N, zmax, computedpars, knownpars = cosmo_params): 
+        """
+        Initializes the study.
+        Args:
+            N (int): number of points for the redshifts (number count)
+            zmax (float): maximum redshift
+            computedpars (list[str]): list of the names of the parameters to compute
+            knownpars (dict, optional): Permet d'avoir une valeurs pour les paramètres cosmologiques fixés. Peut contenir aussi des paramètres non fixés. Defaults to cosmo_params.
+        """
+        self.z = np.linspace(0, zmax, N)
+        self.N = N
+        self.zmax = zmax
+        self.computedpars = computedpars
+        self.knownpars = knownpars
+        self.cosmo_params = {"Om0": None, "Ob0": None, "H0": None, "ns": None, "As": None}
+        for c in self.knownpars:
+            self.cosmo_params[c] = self.knownpars[c]
+        self._data = None
+        self._std = None
+    
+    
+    # def calc_number_count(self, cosmo_params):
+    #     mf = My_Tinker08(z=0, cosmo_params=cosmo_params)
+    #     # On intègre dndm sur M puis sur z
+    #     res = np.zeros(self.N)
+    #     for i in range(self.N):
+    #         z = self.zmax * i / N
+    #         L_z = np.linspace(z, z+self.zmax/self.N, self.N)   # Prendre N pour le nombre de points est totalement arbitraire ici
+    #         L_intgs = np.zeros(self.N)   # Liste des intégrales sur M en fonction de z
+    #         for j in range(self.N):
+    #             mf.set_z(L_z[j])
+    #             L_intgs[j] = intg.trapz(mf.dndm, mf.m)
+    #         res[i] = intg.trapz(L_intgs, L_z)
+    #     self._number_count = res
+    
+    
+    def create_artificial_data(self, cosmo_params):
+        self._data = get_number_count(cosmo_params, self.N, self.zmax)
+        self._std = 0.1 * self._data
+    
     @property
-    def number_count(self, N, zmax):
-        res = np.zeros(N)
-        for i in range(N):
-            z = zmax * i / N
-            L_z = np.linspace(z, z+zmax/N, N)
-            L_intgs = np.zeros(N)
-            for j in range(N):
-                L_intgs[j] = intg.trapz(self.dndm, self.m)
-                self.set_z(z)
-                L_intgs[j] = intg.trapz(self.dndm, self.m)
-            res[i] = intg.trapz(L_intgs, L_z)
+    def data(self):
+        if self._data is None:
+            raise ValueError("No data found. Please run create_artificial_data or provide real data.")
+        return self._data
+    
+    @property
+    def std(self):
+        if self.std is None:
+            raise ValueError("No data found. Please run create_artificial_data or provide real data.")
+        return self.std
+        
+    def update_params(self, theta):
+        for i in range(len(theta)):
+            self.cosmo_params[self.computedpars[i]] = theta[i]
+    
+    def calc_params(self, theta_i):
+        """theta_i est le vecteur initial des paramètres à ajuster."""
+        if self._data is None:
+            raise ValueError("No data to fit. Please run create_artificial_data or provide real data.")
+        self.update_params(theta_i)
+        theta_prec = np.copy(theta_i)
+        model = get_number_count(self.cosmo_params, self.N, self.zmax)
+        chi2_prec = calc_chi2(self.data, model, self.std)
+        burning = True
+        i = 0
+        while burning:
+            theta_new = np.random.normal(theta_prec, 0.01 * theta_prec)
+            print(theta_new)
+            self.update_params(theta_new)
+            model = get_number_count(self.cosmo_params, self.N, self.zmax)
+            chi2_new = calc_chi2(self.data, model, self.std)
+            print(chi2_new)
+            if chi2_new < chi2_prec:
+                theta_prec = np.copy(theta_new)
+                chi2_prec = chi2_new
+                print("Kept !")
+            i += 1
+            if i > 100 or chi2_new < 1:
+                burning = False
+        return theta_new
+            
 
 
-# class Etude():
-#     def __init__(
-#         self,
-#         z=0,
-#         cosmo_params=cosmo_params,
-#         n=n,
-#         baryons_effect="Aucun",
-#         baryons_params = {},
-#         delta=200,
-#         Mmin=13,
-#         Mmax=15,
-#         kmin=1e-4,
-#         kmax=1,
-#     ):
-#         pass
+    
+
+
+
+# cosmo_params = {
+#     "H0": 70,
+#     "Om0": 0.294,
+#     "Ob0": 0.022 / 0.7**2,
+# }
+
+# N = 5
+# zmax = 1
+
+# thetai = [cosmo_params["Om0"]]
+
+# s = Study(N,zmax,cosmo_params)
+# s.create_artificial_data(cosmo_params)
+
+# s.calc_params(thetai)
