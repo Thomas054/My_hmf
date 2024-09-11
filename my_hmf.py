@@ -40,7 +40,7 @@ GSI = 6.67430e-11  # m^3 kg^-1 s^-2
 G = GSI * MSun / Mparsec_to_m**3  # Mpc^3 MSun^-1 s^-2
 cSI = 3.0e8  # m s^-1
 c = cSI / Mparsec_to_m  # Mpc s^-1
-N = 2000  # Nombre de points pour les courbes
+Ncamb = 2000  # Nombre de points pour les courbes
 
 
 Neff = 3.046
@@ -80,6 +80,7 @@ class My_MassFunction:
         Mmax,
         kmin,
         kmax,
+        Ncamb,
     ):
         """On définit tous les attributs"""
         self.z = z
@@ -107,11 +108,12 @@ class My_MassFunction:
         self.Mmax = Mmax  # Puissance de 10 dans la masse maximale considérée, en h^-1 . MasseSolaire
         self.kmin = kmin  # h/Mpc
         self.kmax = kmax  # h/Mpc
+        self.Ncamb = Ncamb
 
         self.baryons_effect = baryons_effect
         self.baryons_params = baryons_params
 
-        self._m = np.linspace(10**self.Mmin, 10**self.Mmax, N)
+        self._m = np.linspace(10**self.Mmin, 10**self.Mmax, Ncamb)
         self._k = None
         self._Pk_camb = None
         self._Pk = None
@@ -136,7 +138,7 @@ class My_MassFunction:
         pars.NonLinear = model.NonLinear_none
         results = camb.get_results(pars)
         k, _, Pk = results.get_matter_power_spectrum(
-            minkh=self.kmin, maxkh=self.kmax, npoints=N
+            minkh=self.kmin, maxkh=self.kmax, npoints=self.Ncamb
         )
         return k, Pk[0]
 
@@ -220,6 +222,7 @@ class My_Tinker08(My_MassFunction):
         Mmax=15,
         kmin=1e-4,
         kmax=1,
+        Ncamb=Ncamb,
     ):
         super().__init__(
             z=z,
@@ -230,6 +233,7 @@ class My_Tinker08(My_MassFunction):
             Mmax=Mmax,
             kmin=kmin,
             kmax=kmax,
+            Ncamb=Ncamb,
         )
         
         self.delta = delta
@@ -334,8 +338,8 @@ class My_Tinker08(My_MassFunction):
     #         res[i] = intg.trapz(L_intgs, L_z)
     #     return res
 
-def get_number_count(cosmo_params, N, zmax):
-    mf = My_Tinker08(z=0, cosmo_params=cosmo_params)
+def get_number_count(cosmo_params, N, zmax, Ncamb):
+    mf = My_Tinker08(z=0, cosmo_params=cosmo_params, Ncamb=Ncamb)
     # On intègre dndm sur M puis sur z
     res = np.zeros(N)
     for i in range(N):
@@ -352,7 +356,7 @@ def calc_chi2(data, model, std):
 
 
 class Study():
-    def __init__(self, N_z, zmax, computedpars, knownpars = cosmo_params): 
+    def __init__(self, N_z, zmax, computedpars, knownpars = cosmo_params, Ncamb=Ncamb): 
         """
         Initializes the study.
         Args:
@@ -363,6 +367,7 @@ class Study():
         """
         self.z = np.linspace(0, zmax, N_z)
         self.N_z = N_z
+        self.Ncamb=Ncamb
         self.zmax = zmax
         self.computedpars = computedpars
         self.knownpars = knownpars
@@ -389,7 +394,7 @@ class Study():
     
     
     def create_artificial_data(self, cosmo_params):
-        _, self._data = get_number_count(cosmo_params, self.N_z, self.zmax)
+        _, self._data = get_number_count(cosmo_params, self.N_z, self.zmax, self.Ncamb)
         self._std = 0.1 * self._data
     
     @property
@@ -408,7 +413,7 @@ class Study():
         for i in range(len(theta)):
             self.cosmo_params[self.computedpars[i]] = theta[i]
     
-    def calc_params(self, theta_i, N, step):
+    def calc_params(self, theta_i, N, step, plot=False):
         """
         Computes the parameters.
         Args:
@@ -420,7 +425,6 @@ class Study():
             L_pars, L_chi2 (list[list[float]], list[float]): Respectively the parameters and the chi_2 associated for each iteration.\\
             `L_pars[:,j]` contains the values of the parameter j for each iteration. (so the tab is tall but not very large)
         """
-        # TODO: garder en mémoire les paramètres "parcourus" et les chi_2 associés
         # TODO: mettre des bornes pour chaque paramètre, et si une valeur les dépasse, prendre une autre valeur aléatoire
         if self._data is None:
             raise ValueError("No data to fit. Please run create_artificial_data or provide real data.")
@@ -429,11 +433,52 @@ class Study():
         self.update_params(theta_i)
         theta_prec = np.copy(theta_i)
         print(theta_prec)
-        _, model = get_number_count(self.cosmo_params, self.N_z, self.zmax)
+        _, model = get_number_count(self.cosmo_params, self.N_z, self.zmax, self.Ncamb)
         chi2_prec = calc_chi2(self.data, model, self.std)
         print(chi2_prec)
         L_pars[0] = theta_prec
         L_chi2[0] = chi2_prec
+        
+        if plot:
+            fig, axs = plt.subplots(2,2)
+            axs[0,1].axis('off')
+            axOm = axs[0,0]
+            axOm.set_ylabel(r"$\chi_2$")
+            axtot = axs[1,0]
+            axtot.set_xlabel(r"$\Omega_m$")
+            axtot.set_ylabel(r"$A_s$")
+            axAs = axs[1,1]
+            axAs.set_xlabel(r"$\chi_2$")
+            lineOm, = axOm.plot(L_pars[:1,0], L_chi2[:1], 'o-')
+            linetot, = axtot.plot(L_pars[:1,0], L_pars[:1,1], 'o-')
+            lineAs, = axAs.plot(L_chi2[:1], L_pars[:1,1], 'o-')
+            
+            axOm.plot(L_pars[0,0], L_chi2[0], 'ro')
+            axtot.plot(L_pars[0,0], L_pars[0,1], 'ro')
+            axAs.plot(L_chi2[0], L_pars[0,1], 'ro')
+            
+            plt.ion()
+            plt.show()
+            # plt.subplot(2,2,1)
+            # line_Om, = plt.plot ([],[])
+            # plt.ylabel(r"$\chi_2$")
+            # plt.subplot(2,2,3)
+            # line_tot, = plt.plot([],[])
+            # plt.xlabel(r"$\Omega_m$")
+            # plt.ylabel(r"$A_s$")
+            # plt.subplot(2,2,4)
+            # line_As, = plt.plot([],[])
+            # plt.xlabel(r"$\chi_2$")
+            # line_Om.set_xdata(L_pars[:1,0])
+            # line_Om.set_ydata(L_chi2[:1])
+            # line_tot.set_xdata(L_pars[:1,0])
+            # line_tot.set_ydata(L_pars[:1,1])
+            # line_As.set_xdata(L_chi2[:1])
+            # line_As.set_ydata(L_pars[:1,1])
+            # plt.draw()
+            
+            
+        
         burning = True
         i = 0
         while burning:
@@ -441,7 +486,7 @@ class Study():
             theta_new = np.random.normal(theta_prec, step)
             print(theta_new)
             self.update_params(theta_new)
-            _, model = get_number_count(self.cosmo_params, self.N_z, self.zmax)
+            _, model = get_number_count(self.cosmo_params, self.N_z, self.zmax, self.Ncamb)
             chi2_new = calc_chi2(self.data, model, self.std)
             print(chi2_new)
             x = np.random.uniform()
@@ -451,6 +496,20 @@ class Study():
                 print("Kept !")
             L_pars[i] = theta_prec
             L_chi2[i] = chi2_prec
+            if plot:
+                lineOm.set_data(L_pars[:i+1,0], L_chi2[:i+1])
+                linetot.set_data(L_pars[:i+1,0], L_pars[:i+1,1])
+                lineAs.set_data(L_chi2[:i+1], L_pars[:i+1,1])
+                
+                axOm.relim()
+                axOm.autoscale_view()
+                axtot.relim()
+                axtot.autoscale_view()
+                axAs.relim()
+                axAs.autoscale_view()
+                fig.canvas.draw()
+                fig.canvas.flush_events()
+                
             if i >= N-1:
                 burning = False
         return L_pars, L_chi2
