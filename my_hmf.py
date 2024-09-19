@@ -413,7 +413,7 @@ class Study():
         for i in range(len(theta)):
             self.cosmo_params[self.computedpars[i]] = theta[i]
     
-    def calc_params(self, theta_i, N, step, plot=False):
+    def calc_params(self, theta_i, N, step, plot=False, L_pars_prec=None, L_chi2_prec=None):
         """
         Computes the parameters.
         Args:
@@ -426,18 +426,25 @@ class Study():
             `L_pars[:,j]` contains the values of the parameter j for each iteration. (so the tab is tall but not very large)
         """
         # TODO: mettre des bornes pour chaque paramètre, et si une valeur les dépasse, prendre une autre valeur aléatoire
+        i = 0       # Pour la boucle while
         if self._data is None:
             raise ValueError("No data to fit. Please run create_artificial_data or provide real data.")
         L_pars = np.zeros((N,len(theta_i)))
         L_chi2 = np.zeros(N)
+        if L_pars_prec is not None:     # Si on veut continuer une chaîne
+            theta_i = L_pars_prec[-1]
+            L_pars = np.concatenate((L_pars_prec[:-1], L_pars))  # On enlève le dernier élément de L_pars_prec pour ne pas le rajouter deux fois
+            L_chi2 = np.concatenate((L_chi2_prec[:-1], L_chi2))  # Idem
+            i = len(L_pars_prec)-1        # On commence à l'indice suivant
+            N = len(L_pars)
         self.update_params(theta_i)
         theta_prec = np.copy(theta_i)
         print(theta_prec)
         _, model = get_number_count(self.cosmo_params, self.N_z, self.zmax, self.Ncamb)
         chi2_prec = calc_chi2(self.data, model, self.std)
         print(chi2_prec)
-        L_pars[0] = theta_prec
-        L_chi2[0] = chi2_prec
+        L_pars[i] = theta_prec
+        L_chi2[i] = chi2_prec
         
         if plot:
             fig, axs = plt.subplots(2,2)
@@ -480,7 +487,6 @@ class Study():
             
         
         burning = True
-        i = 0
         while burning:
             i += 1
             theta_new = np.random.normal(theta_prec, step)
