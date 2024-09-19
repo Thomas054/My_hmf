@@ -376,6 +376,14 @@ class Study():
             self.cosmo_params[c] = self.knownpars[c]
         self._data = None
         self._std = None
+        
+        self.h = knownpars["H0"] / 100        
+        self.Asmin = 1e-9
+        self.Asmax = 3e-9
+        # 0.1 = omch2min = Odm0min * h**2 = (Omm0min - Ob0) * h**2
+        self.Om0min = 0.1/(self.h**2) + knownpars["Ob0"]
+        self.Om0max = 0.15/(self.h**2) + knownpars["Ob0"]
+
     
     
     # def calc_number_count(self, cosmo_params):
@@ -412,6 +420,16 @@ class Study():
     def update_params(self, theta):
         for i in range(len(theta)):
             self.cosmo_params[self.computedpars[i]] = theta[i]
+            
+    def theta_is_valid(self, theta):
+        for i in range(len(theta)):
+            if self.computedpars[i] == "Om0":
+                if theta[i] < self.Om0min or theta[i] > self.Om0max:
+                    return False
+            elif self.computedpars[i] == "As":
+                if theta[i] < self.Asmin or theta[i] > self.Asmax:
+                    return False
+        return True
     
     def calc_params(self, theta_i, N, step, plot=False, L_pars_prec=None, L_chi2_prec=None):
         """
@@ -466,59 +484,47 @@ class Study():
             
             plt.ion()
             plt.show()
-            # plt.subplot(2,2,1)
-            # line_Om, = plt.plot ([],[])
-            # plt.ylabel(r"$\chi_2$")
-            # plt.subplot(2,2,3)
-            # line_tot, = plt.plot([],[])
-            # plt.xlabel(r"$\Omega_m$")
-            # plt.ylabel(r"$A_s$")
-            # plt.subplot(2,2,4)
-            # line_As, = plt.plot([],[])
-            # plt.xlabel(r"$\chi_2$")
-            # line_Om.set_xdata(L_pars[:1,0])
-            # line_Om.set_ydata(L_chi2[:1])
-            # line_tot.set_xdata(L_pars[:1,0])
-            # line_tot.set_ydata(L_pars[:1,1])
-            # line_As.set_xdata(L_chi2[:1])
-            # line_As.set_ydata(L_pars[:1,1])
-            # plt.draw()
-            
             
         
         burning = True
-        while burning:
-            i += 1
-            theta_new = np.random.normal(theta_prec, step)
-            print(theta_new)
-            self.update_params(theta_new)
-            _, model = get_number_count(self.cosmo_params, self.N_z, self.zmax, self.Ncamb)
-            chi2_new = calc_chi2(self.data, model, self.std)
-            print(chi2_new)
-            x = np.random.uniform()
-            if x < chi2_prec/chi2_new:
-                theta_prec = np.copy(theta_new)
-                chi2_prec = chi2_new
-                print("Kept !")
-            L_pars[i] = theta_prec
-            L_chi2[i] = chi2_prec
-            if plot:
-                lineOm.set_data(L_pars[:i+1,0], L_chi2[:i+1])
-                linetot.set_data(L_pars[:i+1,0], L_pars[:i+1,1])
-                lineAs.set_data(L_chi2[:i+1], L_pars[:i+1,1])
-                
-                axOm.relim()
-                axOm.autoscale_view()
-                axtot.relim()
-                axtot.autoscale_view()
-                axAs.relim()
-                axAs.autoscale_view()
-                fig.canvas.draw()
-                fig.canvas.flush_events()
-                
-            if i >= N-1:
-                burning = False
-        return L_pars, L_chi2
+        i += 1
+        try:
+            while burning:
+                print(i)
+                theta_new = np.random.normal(theta_prec, step)
+                print(theta_new)
+                self.update_params(theta_new)
+                _, model = get_number_count(self.cosmo_params, self.N_z, self.zmax, self.Ncamb)
+                chi2_new = calc_chi2(self.data, model, self.std)
+                print(chi2_new)
+                x = np.random.uniform()
+                if x < chi2_prec/chi2_new and self.theta_is_valid(theta_new):
+                    theta_prec = np.copy(theta_new)
+                    chi2_prec = chi2_new
+                    print("Kept !")
+                    L_pars[i] = theta_prec
+                    L_chi2[i] = chi2_prec
+                    if plot:
+                        lineOm.set_data(L_pars[:i+1,0], L_chi2[:i+1])
+                        linetot.set_data(L_pars[:i+1,0], L_pars[:i+1,1])
+                        lineAs.set_data(L_chi2[:i+1], L_pars[:i+1,1])
+                        
+                        axOm.relim()
+                        axOm.autoscale_view()
+                        axtot.relim()
+                        axtot.autoscale_view()
+                        axAs.relim()
+                        axAs.autoscale_view()
+                        fig.canvas.draw()
+                        fig.canvas.flush_events()
+                    i += 1
+                # Si les nouveaux paramètres ne sont pas retenus, on ne fait strictement rien (on n'incrémente même pas i)
+                    
+                if i >= N:
+                    burning = False
+        finally:
+            return L_pars[:i], L_chi2[:i]
+        
             
 
 
