@@ -30,9 +30,8 @@ def MCMC(computedpars,N,stepfactor,thetai,Ncamb,plot,add=True):
     car = f"*__{stepfactor}__"
     for par in thetai:
         car += f"{par}__"
-    car += f"{Ncamb}"
     if add:
-        car += "__add"
+        car += "add"
     
     files_pars = glob.glob(f'data/{car}__pars.csv')
     files_chi2 = glob.glob(f'data/{car}__chi2.csv')
@@ -65,20 +64,19 @@ def MCMC(computedpars,N,stepfactor,thetai,Ncamb,plot,add=True):
     car = f"{len(L_chi2)}__{stepfactor}__"        # On stocke dans un nouveau fichier vu qu'on a plus d'itérations
     for par in thetai:
         car += f"{par}__"
-    car += f"{Ncamb}"
     if add:
-        car += "__add"
+        car += "add"
     
     np.savetxt(f'data/{car}__pars.csv', L_pars)
     np.savetxt(f'data/{car}__chi2.csv', L_chi2)
 
 
-computedpars = ["As"]
+computedpars = ["Om0","As"]
 Ncamb = 1000
 N = 100         # Nombre d'itérations de MCMC
-# thetai = np.array([0.26, 1.3e-9])
-thetai = np.array([1.3e-9])
+thetai = np.array([0.26, 1.3e-9])
+# thetai = np.array([1.3e-9])
 stepfactor = 0.05
 
 
-MCMC(computedpars,N,stepfactor,thetai,Ncamb,plot=False,add=True)
+MCMC(computedpars,N,stepfactor,thetai,Ncamb,plot=True,add=True)
