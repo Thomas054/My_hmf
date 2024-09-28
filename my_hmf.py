@@ -443,7 +443,6 @@ class Study():
             L_pars, L_chi2 (list[list[float]], list[float]): Respectively the parameters and the chi_2 associated for each iteration.\\
             `L_pars[:,j]` contains the values of the parameter j for each iteration. (so the tab is tall but not very large)
         """
-        # TODO: mettre des bornes pour chaque paramètre, et si une valeur les dépasse, prendre une autre valeur aléatoire
         if len(theta_i) == 2:
             assert self.computedpars == ["Om0", "As"] and self.Om0min < theta_i[0] and theta_i[0] < self.Om0max and self.Asmin < theta_i[1] and theta_i[1] < self.Asmax
         if len(theta_i) == 1 and self.computedpars == ["Om0"]:

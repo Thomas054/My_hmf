@@ -48,6 +48,7 @@ def MCMC(computedpars,N,stepfactor,thetai,Ncamb,plot,add=True):
     #             os.remove(files_pars[i])
     #             os.remove(files_chi2[i])
     if add and os.path.exists(f'data/{car}__pars.csv') and os.path.exists(f'data/{car}__chi2.csv'):
+        print("File found !")
         L_pars_prec = np.loadtxt(f'data/{car}__pars.csv')
         L_chi2_prec = np.loadtxt(f'data/{car}__chi2.csv')
     
@@ -84,4 +85,4 @@ thetai = np.array([0.32, 2.5e-9])
 stepfactor = 0.05
 
 
-MCMC(computedpars,N,stepfactor,thetai,Ncamb,plot=True,add=True)
+MCMC(computedpars,N,stepfactor,thetai,Ncamb,plot=False,add=True)
