@@ -444,6 +444,12 @@ class Study():
             `L_pars[:,j]` contains the values of the parameter j for each iteration. (so the tab is tall but not very large)
         """
         # TODO: mettre des bornes pour chaque paramètre, et si une valeur les dépasse, prendre une autre valeur aléatoire
+        if len(theta_i) == 2:
+            assert self.computedpars == ["Om0", "As"] and self.Om0min < theta_i[0] and theta_i[0] < self.Om0max and self.Asmin < theta_i[1] and theta_i[1] < self.Asmax
+        if len(theta_i) == 1 and self.computedpars == ["Om0"]:
+            assert self.Om0min < theta_i[0] and theta_i[0] < self.Om0max
+        if len(theta_i) == 1 and self.computedpars == ["As"]:
+            assert self.Asmin < theta_i[0] and theta_i[0] < self.Asmax
         i = 0       # Pour la boucle while
         if self._data is None:
             raise ValueError("No data to fit. Please run create_artificial_data or provide real data.")
