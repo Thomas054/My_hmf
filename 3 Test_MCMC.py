@@ -33,20 +33,6 @@ def MCMC(computedpars,N,stepfactor,thetai,Ncamb,plot,add=True):
     if add:
         car += "add"
     
-    # files_pars = glob.glob(f'data/{car}__pars.csv')
-    # files_chi2 = glob.glob(f'data/{car}__chi2.csv')
-    # if add and len(files_pars) != 0 and len(files_chi2) != 0:       # "add" dans le nom du fichier indique si on a le droit d'ajouter des choses ou pas
-    #     print("file found")
-    #     numeros = [int(re.findall(r'\d+', file)[0]) for file in files_pars]     # On récupère les premiers numéros dans les noms de fichiers existants
-        
-    #     L_pars_prec = np.loadtxt(files_pars[np.argmax(numeros)])
-    #     L_chi2_prec = np.loadtxt(files_chi2[np.argmax(numeros)])
-    #     # Bref, on récupère les données avec le plus d'itérations
-    #     # Puis on supprime les autres
-    #     for i in range(len(files_pars)):
-    #         if i != np.argmax(numeros):
-    #             os.remove(files_pars[i])
-    #             os.remove(files_chi2[i])
     if add and os.path.exists(f'data/{car}__pars.csv') and os.path.exists(f'data/{car}__chi2.csv'):
         print("File found !")
         L_pars_prec = np.loadtxt(f'data/{car}__pars.csv')
