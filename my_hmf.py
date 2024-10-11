@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from hmf import MassFunction
 import scipy.integrate as intg
+import os
 
 import camb
 from camb import model
@@ -339,6 +340,18 @@ class My_Tinker08(My_MassFunction):
     #     return res
 
 def get_number_count(cosmo_params, N, zmax, Ncamb):
+    """
+    Number count as a function of z.
+
+    Args:
+        cosmo_params (dict): _description_
+        N (int): number of points for the redshifts
+        zmax (float): maximum redshift
+        Ncamb (int): number of points for the mass
+
+    Returns:
+        (float list, float list): redshifts and number count
+    """
     mf = My_Tinker08(z=0, cosmo_params=cosmo_params, Ncamb=Ncamb)
     # On intègre dndm sur M puis sur z
     res = np.zeros(N)
@@ -383,6 +396,9 @@ class Study():
         # 0.1 = omch2min = Odm0min * h**2 = (Omm0min - Ob0) * h**2
         self.Om0min = 0.1/(self.h**2) + knownpars["Ob0"]
         self.Om0max = 0.15/(self.h**2) + knownpars["Ob0"]
+        
+        self._thetai = None
+        self._stepfactor = None
 
     
     
@@ -416,6 +432,24 @@ class Study():
         if self._std is None:
             raise ValueError("No data found. Please run create_artificial_data or provide real data.")
         return self._std
+
+    @property
+    def thetai(self):
+        if self._thetai is None:
+            raise ValueError("No initial guess for the parameters. Please run MCMC or set_tetai first.")
+        return self._thetai
+    
+    def set_thetai(self, thetai):
+        self._thetai = thetai
+    
+    @property
+    def stepfactor(self):
+        if self._stepfactor is None:
+            raise ValueError("No step factor for the parameters. Please run MCMC or set_stepfactor first.")
+        return self._stepfactor
+    
+    def set_stepfactor(self, stepfactor):
+        self._stepfactor = stepfactor
         
     def update_params(self, theta):
         for i in range(len(theta)):
@@ -529,6 +563,76 @@ class Study():
                     burning = False
         finally:
             return L_pars[:i], L_chi2[:i]
+    
+    
+    def MCMC(self,N,stepfactor,thetai,plot,add=True):
+        """
+        `add` indique si on ajoute les données à celles déjà existantes (quand elles existent) ou bien si on les écrase
+        """
+        # Enregistrement de thetai et stepfactor
+        self._thetai = thetai
+        self._stepfactor = stepfactor
+        
+        # Création du nom du fichier
+        car = f"{stepfactor}__"
+        for par in thetai:
+            car += f"{par}__"
+        if add:
+            car += "add"
+         
+        # On regarde si on peut reprendre une chaîne
+        if add and os.path.exists(f'data/{car}__pars.csv') and os.path.exists(f'data/{car}__chi2.csv'):
+            print("File found !")
+            L_pars_prec = np.loadtxt(f'data/{car}__pars.csv')
+            L_chi2_prec = np.loadtxt(f'data/{car}__chi2.csv')
+        # Sinon on initialise les listes
+        else:
+            L_pars_prec = None
+            L_chi2_prec = None
+            
+            
+        # s = Study(N_z,zmax, computedpars, knownpars = cosmo_params, Ncamb=Ncamb)
+        
+        step = stepfactor*thetai
+
+
+        L_pars, L_chi2 = self.calc_params(thetai, N, step, plot, L_pars_prec=L_pars_prec, L_chi2_prec=L_chi2_prec)
+
+
+        car = f"{stepfactor}__"        # On stocke dans un nouveau fichier vu qu'on a plus d'itérations
+        for par in thetai:
+            car += f"{par}__"
+        if add:
+            car += "add"
+        
+        np.savetxt(f'data/{car}__pars.csv', L_pars)
+        np.savetxt(f'data/{car}__chi2.csv', L_chi2)
+        
+    
+    def find_best_values(self):
+        car = f"{self.stepfactor}__"
+        for par in self.thetai:
+            car += f"{par}__"
+        car += "add"
+        
+        try:
+            L_pars = np.loadtxt(f'data/{car}__pars.csv')
+            L_chi2 = np.loadtxt(f'data/{car}__chi2.csv')
+        except FileNotFoundError:
+            print("File not found. Please run MCMC first.")
+            return None
+        i = np.argmin(L_chi2)
+        return L_pars[i]
+    
+    def get_approximate_number_count(self):
+        """Computes the number count with the best values of the parameters given by MCMC.
+
+        Returns:
+            list: Number count
+        """
+        theta = self.find_best_values()
+        self.update_params(theta)
+        return get_number_count(self.cosmo_params, self.N_z, self.zmax, self.Ncamb)[1]
         
             
 
