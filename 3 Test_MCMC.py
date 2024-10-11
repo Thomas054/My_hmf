@@ -22,12 +22,12 @@ zmax = 1
 computedpars = ["Om0","As"]
 Ncamb = 1000
 N = 10000         # Nombre d'itérations de MCMC
-thetai = np.array([0.32, 2.5e-9])
+thetai = np.array([0.26, 1.1e-9])
 # thetai = np.array([1.3e-9])
 stepfactor = 0.05
 
 s = Study(N_z,zmax, computedpars, knownpars = cosmo_params, Ncamb=Ncamb)
 s.create_artificial_data(cosmo_params)
-s.MCMC(N, stepfactor, thetai, plot=False, add=True)
+s.MCMC(N, stepfactor, thetai, plot=False, add=True, newpos=True)
 
 # MCMC(computedpars,N,stepfactor,thetai,Ncamb,plot=False,add=True)

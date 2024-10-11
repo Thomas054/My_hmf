@@ -565,7 +565,7 @@ class Study():
             return L_pars[:i], L_chi2[:i]
     
     
-    def MCMC(self,N,stepfactor,thetai,plot,add=True):
+    def MCMC(self,N,stepfactor,thetai,plot,add=True,newpos=False):
         """
         `add` indique si on ajoute les données à celles déjà existantes (quand elles existent) ou bien si on les écrase
         """
@@ -574,11 +574,9 @@ class Study():
         self._stepfactor = stepfactor
         
         # Création du nom du fichier
-        car = f"{stepfactor}__"
-        for par in thetai:
-            car += f"{par}__"
+        car = f"{stepfactor}"
         if add:
-            car += "add"
+            car += "__add"
          
         # On regarde si on peut reprendre une chaîne
         if add and os.path.exists(f'data/{car}__pars.csv') and os.path.exists(f'data/{car}__chi2.csv'):
@@ -595,25 +593,24 @@ class Study():
         
         step = stepfactor*thetai
 
-
+        if newpos:
+            # On rajoute thetai à L_pars_prec et le chi2 associé dans L_chi2_prec
+            np.append(L_pars_prec, thetai)
+            self.update_params(thetai)
+            np.append(L_chi2_prec, calc_chi2(self.data, get_number_count(self.cosmo_params, self.N_z, self.zmax, self.Ncamb)[1], self.std))  # On calcule le chi2 pour thetai
         L_pars, L_chi2 = self.calc_params(thetai, N, step, plot, L_pars_prec=L_pars_prec, L_chi2_prec=L_chi2_prec)
 
 
-        car = f"{stepfactor}__"        # On stocke dans un nouveau fichier vu qu'on a plus d'itérations
-        for par in thetai:
-            car += f"{par}__"
+        car = f"{stepfactor}"        # On stocke dans un nouveau fichier vu qu'on a plus d'itérations
         if add:
-            car += "add"
+            car += "__add"
         
         np.savetxt(f'data/{car}__pars.csv', L_pars)
         np.savetxt(f'data/{car}__chi2.csv', L_chi2)
         
     
     def find_best_values(self):
-        car = f"{self.stepfactor}__"
-        for par in self.thetai:
-            car += f"{par}__"
-        car += "add"
+        car = f"{self.stepfactor}__add"
         
         try:
             L_pars = np.loadtxt(f'data/{car}__pars.csv')
