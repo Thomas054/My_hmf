@@ -28,6 +28,6 @@ stepfactor = 0.05
 
 s = Study(N_z,zmax, computedpars, knownpars = cosmo_params, Ncamb=Ncamb)
 s.create_artificial_data(cosmo_params)
-s.MCMC(N, stepfactor, thetai, plot=False, add=True, newpos=True)
+s.MCMC(N, stepfactor, thetai, plot=False, add=True, newpos=False)
 
 # MCMC(computedpars,N,stepfactor,thetai,Ncamb,plot=False,add=True)

@@ -594,10 +594,11 @@ class Study():
         step = stepfactor*thetai
 
         if newpos:
+            print("New starting position")
             # On rajoute thetai à L_pars_prec et le chi2 associé dans L_chi2_prec
-            np.append(L_pars_prec, thetai)
+            L_pars_prec = np.append(L_pars_prec, [thetai], axis = 0)
             self.update_params(thetai)
-            np.append(L_chi2_prec, calc_chi2(self.data, get_number_count(self.cosmo_params, self.N_z, self.zmax, self.Ncamb)[1], self.std))  # On calcule le chi2 pour thetai
+            L_chi2_prec = np.append(L_chi2_prec, calc_chi2(self.data, get_number_count(self.cosmo_params, self.N_z, self.zmax, self.Ncamb)[1], self.std))  # On calcule le chi2 pour thetai
         L_pars, L_chi2 = self.calc_params(thetai, N, step, plot, L_pars_prec=L_pars_prec, L_chi2_prec=L_chi2_prec)
 
 
