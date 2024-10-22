@@ -42,6 +42,7 @@ G = GSI * MSun / Mparsec_to_m**3  # Mpc^3 MSun^-1 s^-2
 cSI = 3.0e8  # m s^-1
 c = cSI / Mparsec_to_m  # Mpc s^-1
 Ncamb = 2000  # Nombre de points pour les courbes
+resolution_z = 100
 
 
 Neff = 3.046
@@ -339,7 +340,7 @@ class My_Tinker08(My_MassFunction):
     #         res[i] = intg.trapz(L_intgs, L_z)
     #     return res
 
-def get_number_count(cosmo_params, N, zmax, Ncamb):
+def get_number_count(cosmo_params, N, zmax, Ncamb, resolution_z):
     """
     Number count as a function of z.
 
@@ -348,6 +349,7 @@ def get_number_count(cosmo_params, N, zmax, Ncamb):
         N (int): number of points for the redshifts
         zmax (float): maximum redshift
         Ncamb (int): number of points for the mass
+        resolution_z (int): number of points for the redshifts in each bin, for the integration
 
     Returns:
         (float list, float list): redshifts and number count
@@ -355,11 +357,18 @@ def get_number_count(cosmo_params, N, zmax, Ncamb):
     mf = My_Tinker08(z=0, cosmo_params=cosmo_params, Ncamb=Ncamb)
     # On intègre dndm sur M puis sur z
     res = np.zeros(N)
-    for i in range(N):
+    intgs_sur_m = np.zeros(N+1) # On inclut les 2 bornes de l'intervalle considéré, d'où le +1
+    for i in range(N+1):    # A chaque point, on le relie au point précédent par un segment et on calcule l'intégrale de la courbe ainsi créée
         z = zmax * i / N
         mf.set_z(z)
-        res[i] = intg.trapz(mf.dndm, mf.m)
-    return np.linspace(0, zmax, N), res
+        intgs_sur_m[i] = intg.trapz(mf.dndm, mf.m)
+        if i >= 1:
+            fonction_interpolee = np.interp(np.linspace(z-zmax/N, z, resolution_z, endpoint = False), [z-zmax/N, z], intgs_sur_m[i-1:i+1])      # On relie les 2 points par une droite
+            res[i-1] = intg.trapz(fonction_interpolee, np.linspace(z-zmax/N, z, resolution_z, endpoint = False))
+    # intgs_sur_m = np.interp(np.linspace(0, zmax, resolution_z, endpoint = False), np.linspace(0, zmax, N, endpoint = False), intgs_sur_m)
+    # for i in range(N):
+    #     z = zmax * i / N
+    return np.linspace(0, zmax, N, endpoint = False), res
 
 
 def calc_chi2(data, model, std):
@@ -369,7 +378,7 @@ def calc_chi2(data, model, std):
 
 
 class Study():
-    def __init__(self, N_z, zmax, computedpars, knownpars = cosmo_params, Ncamb=Ncamb): 
+    def __init__(self, N_z, zmax, computedpars, knownpars = cosmo_params, Ncamb=Ncamb, resolution_z=resolution_z): 
         """
         Initializes the study.
         Args:
@@ -378,10 +387,11 @@ class Study():
             computedpars (list[str]): list of the names of the parameters to compute
             knownpars (dict, optional): Permet d'avoir une valeurs pour les paramètres cosmologiques fixés. Peut contenir aussi des paramètres non fixés. Defaults to cosmo_params.
         """
-        self.z = np.linspace(0, zmax, N_z)
+        self.z = np.linspace(0, zmax, N_z, endpoint = False)
         self.N_z = N_z
         self.Ncamb=Ncamb
         self.zmax = zmax
+        self.resolution_z = resolution_z
         self.computedpars = computedpars
         self.knownpars = knownpars
         self.cosmo_params = {"Om0": None, "Ob0": None, "H0": None, "ns": None, "As": None}
@@ -399,7 +409,6 @@ class Study():
         
         self._thetai = None
         self._stepfactor = None
-
     
     
     # def calc_number_count(self, cosmo_params):
@@ -418,7 +427,7 @@ class Study():
     
     
     def create_artificial_data(self, cosmo_params):
-        _, self._data = get_number_count(cosmo_params, self.N_z, self.zmax, self.Ncamb)
+        _, self._data = get_number_count(cosmo_params, self.N_z, self.zmax, self.Ncamb, self.resolution_z)
         self._std = 0.1 * self._data
     
     @property
@@ -497,7 +506,7 @@ class Study():
         self.update_params(theta_i)
         theta_prec = np.copy(theta_i)
         print(theta_prec)
-        _, model = get_number_count(self.cosmo_params, self.N_z, self.zmax, self.Ncamb)
+        _, model = get_number_count(self.cosmo_params, self.N_z, self.zmax, self.Ncamb, self.resolution_z)
         chi2_prec = calc_chi2(self.data, model, self.std)
         print(chi2_prec)
         L_pars[i] = theta_prec
@@ -533,7 +542,7 @@ class Study():
                 theta_new = np.random.normal(theta_prec, step)
                 print(theta_new)
                 self.update_params(theta_new)
-                _, model = get_number_count(self.cosmo_params, self.N_z, self.zmax, self.Ncamb)
+                _, model = get_number_count(self.cosmo_params, self.N_z, self.zmax, self.Ncamb, self.resolution_z)
                 chi2_new = calc_chi2(self.data, model, self.std)
                 print(chi2_new)
                 x = np.random.uniform()
@@ -598,7 +607,7 @@ class Study():
             # On rajoute thetai à L_pars_prec et le chi2 associé dans L_chi2_prec
             L_pars_prec = np.append(L_pars_prec, [thetai], axis = 0)
             self.update_params(thetai)
-            L_chi2_prec = np.append(L_chi2_prec, calc_chi2(self.data, get_number_count(self.cosmo_params, self.N_z, self.zmax, self.Ncamb)[1], self.std))  # On calcule le chi2 pour thetai
+            L_chi2_prec = np.append(L_chi2_prec, calc_chi2(self.data, get_number_count(self.cosmo_params, self.N_z, self.zmax, self.Ncamb, self.resolution_z)[1], self.std))  # On calcule le chi2 pour thetai
         L_pars, L_chi2 = self.calc_params(thetai, N, step, plot, L_pars_prec=L_pars_prec, L_chi2_prec=L_chi2_prec)
 
 
@@ -630,7 +639,7 @@ class Study():
         """
         theta = self.find_best_values()
         self.update_params(theta)
-        return get_number_count(self.cosmo_params, self.N_z, self.zmax, self.Ncamb)[1]
+        return get_number_count(self.cosmo_params, self.N_z, self.zmax, self.Ncamb, self.resolution_z)[1]
         
             
 
