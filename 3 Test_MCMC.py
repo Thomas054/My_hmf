@@ -15,6 +15,14 @@ cosmo_params = {
     "As": 2e-9
 }
 
+# Fonction p(M,z)
+def cutting_function(z):
+    return 8*np.log(z+1) * 1e14
+
+def p(m,z):
+    return (m>cutting_function(z)).astype(int)
+
+
 N_z = 5
 zmax = 1
 
@@ -22,12 +30,13 @@ zmax = 1
 computedpars = ["Om0","As"]
 Ncamb = 1000
 N = 10000         # Nombre d'itérations de MCMC
-thetai = np.array([0.26, 2.5e-9])
+thetai = np.array([0.32, 2.5e-9])
 # thetai = np.array([1.3e-9])
 stepfactor = 0.05
 
 s = Study(N_z,zmax, computedpars, knownpars = cosmo_params, Ncamb=Ncamb)
+s.set_p(p)
 s.create_artificial_data(cosmo_params)
-s.MCMC(N, stepfactor, thetai, plot=True, add=False, newpos=False)
+s.MCMC(N, stepfactor, thetai, plot=False, add=True, newpos=False)
 
 # MCMC(computedpars,N,stepfactor,thetai,Ncamb,plot=False,add=True)

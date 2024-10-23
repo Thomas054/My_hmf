@@ -350,7 +350,7 @@ def get_number_count(cosmo_params, N, zmax, Ncamb, resolution_z, p=lambda x,y:1)
         zmax (float): maximum redshift
         Ncamb (int): number of points for the mass
         resolution_z (int): number of points for the redshifts in each bin, for the integration
-        cutting_function (function, optional): Function M(z) below which the telescope does not see the clusters. Defaults to None.
+        p (function, optional): Function p(M,z). Defaults to constant 1.
 
     Returns:
         (float list, float list): redshifts and number count
@@ -423,7 +423,7 @@ class Study():
         self._thetai = None
         self._stepfactor = None
         
-        self._cutting_function = None  # Fonction M(z) en-dessous de laquelle on considère que le télescope ne voit pas les amas
+        self._p = None  # Fonction p(M,z) pour la fonction get_number_count
     
     
     # def calc_number_count(self, cosmo_params):
@@ -442,7 +442,7 @@ class Study():
     
     
     def create_artificial_data(self, cosmo_params):
-        _, self._data = get_number_count(cosmo_params, self.N_z, self.zmax, self.Ncamb, self.resolution_z)
+        _, self._data = get_number_count(cosmo_params, self.N_z, self.zmax, self.Ncamb, self.resolution_z, p=self.p)
         self._std = 0.1 * self._data
     
     @property
@@ -472,8 +472,17 @@ class Study():
             raise ValueError("No step factor for the parameters. Please run MCMC or set_stepfactor first.")
         return self._stepfactor
     
+    @property
+    def p(self):
+        if self._p is None:
+            raise ValueError("No function p(M,z) found. Please run set_p first.")
+        return self._p
+    
     def set_stepfactor(self, stepfactor):
         self._stepfactor = stepfactor
+    
+    def set_p(self, p):
+        self._p = p
         
     def update_params(self, theta):
         for i in range(len(theta)):
@@ -524,7 +533,7 @@ class Study():
         self.update_params(theta_i)
         theta_prec = np.copy(theta_i)
         print(theta_prec)
-        _, model = get_number_count(self.cosmo_params, self.N_z, self.zmax, self.Ncamb, self.resolution_z)
+        _, model = get_number_count(self.cosmo_params, self.N_z, self.zmax, self.Ncamb, self.resolution_z, p=self.p)
         chi2_prec = calc_chi2(self.data, model, self.std)
         print(chi2_prec)
         L_pars[i] = theta_prec
@@ -560,7 +569,7 @@ class Study():
                 theta_new = np.random.normal(theta_prec, step)
                 print(theta_new)
                 self.update_params(theta_new)
-                _, model = get_number_count(self.cosmo_params, self.N_z, self.zmax, self.Ncamb, self.resolution_z)
+                _, model = get_number_count(self.cosmo_params, self.N_z, self.zmax, self.Ncamb, self.resolution_z, p=self.p)
                 chi2_new = calc_chi2(self.data, model, self.std)
                 print(chi2_new)
                 x = np.random.uniform()
@@ -625,7 +634,7 @@ class Study():
             # On rajoute thetai à L_pars_prec et le chi2 associé dans L_chi2_prec
             L_pars_prec = np.append(L_pars_prec, [thetai], axis = 0)
             self.update_params(thetai)
-            L_chi2_prec = np.append(L_chi2_prec, calc_chi2(self.data, get_number_count(self.cosmo_params, self.N_z, self.zmax, self.Ncamb, self.resolution_z)[1], self.std))  # On calcule le chi2 pour thetai
+            L_chi2_prec = np.append(L_chi2_prec, calc_chi2(self.data, get_number_count(self.cosmo_params, self.N_z, self.zmax, self.Ncamb, self.resolution_z, p=self.p)[1], self.std))  # On calcule le chi2 pour thetai
         L_pars, L_chi2 = self.calc_params(thetai, N, step, plot, L_pars_prec=L_pars_prec, L_chi2_prec=L_chi2_prec)
 
 
@@ -645,7 +654,7 @@ class Study():
         """
         theta = find_best_values(prefix)
         self.update_params(theta)
-        return get_number_count(self.cosmo_params, self.N_z, self.zmax, self.Ncamb, self.resolution_z)[1]
+        return get_number_count(self.cosmo_params, self.N_z, self.zmax, self.Ncamb, self.resolution_z, p=self.p)[1]
         
             
 
