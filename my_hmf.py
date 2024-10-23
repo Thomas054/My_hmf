@@ -340,7 +340,7 @@ class My_Tinker08(My_MassFunction):
     #         res[i] = intg.trapz(L_intgs, L_z)
     #     return res
 
-def get_number_count(cosmo_params, N, zmax, Ncamb, resolution_z, cutting_function=None):
+def get_number_count(cosmo_params, N, zmax, Ncamb, resolution_z, p=lambda x,y:1):
     """
     Number count as a function of z.
 
@@ -362,14 +362,7 @@ def get_number_count(cosmo_params, N, zmax, Ncamb, resolution_z, cutting_functio
     for i in range(N+1):    # A chaque point, on le relie au point précédent par un segment et on calcule l'intégrale de la courbe ainsi créée
         z = zmax * i / N
         mf.set_z(z)
-        if cutting_function is None:
-            m_observee = mf.m
-            dndm_observee = mf.dndm
-        else:
-            indices_conserves = mf.m > cutting_function(z)
-            m_observee = mf.m[indices_conserves]
-            dndm_observee = mf.dndm[indices_conserves]
-        intgs_sur_m[i] = intg.trapz(dndm_observee, m_observee)
+        intgs_sur_m[i] = intg.trapz(mf.dndm*p(mf.m,z), mf.m)
         if i >= 1:
             fonction_interpolee = np.interp(np.linspace(z-zmax/N, z, resolution_z, endpoint = False), [z-zmax/N, z], intgs_sur_m[i-1:i+1])      # On relie les 2 points par une droite
             res[i-1] = intg.trapz(fonction_interpolee, np.linspace(z-zmax/N, z, resolution_z, endpoint = False))
@@ -381,6 +374,18 @@ def get_number_count(cosmo_params, N, zmax, Ncamb, resolution_z, cutting_functio
 
 def calc_chi2(data, model, std):
     return np.sum((data - model)**2 / std**2)
+
+
+
+def find_best_values(prefix):
+    try:
+        L_pars = np.loadtxt(prefix+"pars.csv")
+        L_chi2 = np.loadtxt(prefix+"chi2.csv")
+    except FileNotFoundError:
+        print("File not found. Please run MCMC first.")
+        return None
+    i = np.argmin(L_chi2)
+    return L_pars[i]
 
 
 
@@ -632,25 +637,13 @@ class Study():
         np.savetxt(f'data/{car}__chi2.csv', L_chi2)
         
     
-    def find_best_values(self):
-        car = f"{self.stepfactor}__add"
-        
-        try:
-            L_pars = np.loadtxt(f'data/{car}__pars.csv')
-            L_chi2 = np.loadtxt(f'data/{car}__chi2.csv')
-        except FileNotFoundError:
-            print("File not found. Please run MCMC first.")
-            return None
-        i = np.argmin(L_chi2)
-        return L_pars[i]
-    
-    def get_approximate_number_count(self):
+    def get_approximate_number_count(self, prefix):
         """Computes the number count with the best values of the parameters given by MCMC.
 
         Returns:
             list: Number count
         """
-        theta = self.find_best_values()
+        theta = find_best_values(prefix)
         self.update_params(theta)
         return get_number_count(self.cosmo_params, self.N_z, self.zmax, self.Ncamb, self.resolution_z)[1]
         
