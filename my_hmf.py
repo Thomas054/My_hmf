@@ -340,7 +340,7 @@ class My_Tinker08(My_MassFunction):
     #         res[i] = intg.trapz(L_intgs, L_z)
     #     return res
 
-def get_number_count(cosmo_params, N, zmax, Ncamb, resolution_z):
+def get_number_count(cosmo_params, N, zmax, Ncamb, resolution_z, cutting_function=None):
     """
     Number count as a function of z.
 
@@ -350,6 +350,7 @@ def get_number_count(cosmo_params, N, zmax, Ncamb, resolution_z):
         zmax (float): maximum redshift
         Ncamb (int): number of points for the mass
         resolution_z (int): number of points for the redshifts in each bin, for the integration
+        cutting_function (function, optional): Function M(z) below which the telescope does not see the clusters. Defaults to None.
 
     Returns:
         (float list, float list): redshifts and number count
@@ -361,7 +362,14 @@ def get_number_count(cosmo_params, N, zmax, Ncamb, resolution_z):
     for i in range(N+1):    # A chaque point, on le relie au point précédent par un segment et on calcule l'intégrale de la courbe ainsi créée
         z = zmax * i / N
         mf.set_z(z)
-        intgs_sur_m[i] = intg.trapz(mf.dndm, mf.m)
+        if cutting_function is None:
+            m_observee = mf.m
+            dndm_observee = mf.dndm
+        else:
+            indices_conserves = mf.m > cutting_function(z)
+            m_observee = mf.m[indices_conserves]
+            dndm_observee = mf.dndm[indices_conserves]
+        intgs_sur_m[i] = intg.trapz(dndm_observee, m_observee)
         if i >= 1:
             fonction_interpolee = np.interp(np.linspace(z-zmax/N, z, resolution_z, endpoint = False), [z-zmax/N, z], intgs_sur_m[i-1:i+1])      # On relie les 2 points par une droite
             res[i-1] = intg.trapz(fonction_interpolee, np.linspace(z-zmax/N, z, resolution_z, endpoint = False))
@@ -409,6 +417,8 @@ class Study():
         
         self._thetai = None
         self._stepfactor = None
+        
+        self._cutting_function = None  # Fonction M(z) en-dessous de laquelle on considère que le télescope ne voit pas les amas
     
     
     # def calc_number_count(self, cosmo_params):
@@ -473,6 +483,9 @@ class Study():
                 if theta[i] < self.Asmin or theta[i] > self.Asmax:
                     return False
         return True
+    
+    def cut_model(self):
+        pass
     
     def calc_params(self, theta_i, N, step, plot=False, L_pars_prec=None, L_chi2_prec=None):
         """
