@@ -30,7 +30,7 @@ zmax = 1
 computedpars = ["Om0","As"]
 Ncamb = 1000
 N = 10000         # Nombre d'itérations de MCMC
-thetai = np.array([0.28, 1.5e-9])
+thetai = np.array([0.29, 2.1e-9])
 # thetai = np.array([1.3e-9])
 stepfactor = 0.05
 
