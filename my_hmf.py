@@ -51,24 +51,16 @@ Tcmb0 = 2.7255  # K
 # Effets baryoniques
 if BCemuOK:
     Giri = {
-            "log10Mc": 13.32,
-            "mu": 0.93,
-            "thej": 4.235,
-            "gamma": 2.25,
-            "delta": 6.40,
-            "eta": 0.15,
-            "deta": 0.14,
+        "log10Mc": 13.32,
+        "mu": 0.93,
+        "thej": 4.235,
+        "gamma": 2.25,
+        "delta": 6.40,
+        "eta": 0.15,
+        "deta": 0.14,
     }
 
-cosmo_params = {
-    "H0": 70,
-    "Om0": 0.294,
-    "Ob0": 0.022 / 0.7**2,
-    "ns": 0.965,
-    "As": 2e-9
-}
-
-
+cosmo_params = {"H0": 70, "Om0": 0.294, "Ob0": 0.022 / 0.7**2, "ns": 0.965, "As": 2e-9}
 
 
 class My_MassFunction:
@@ -218,7 +210,7 @@ class My_Tinker08(My_MassFunction):
         z=0,
         cosmo_params=cosmo_params,
         baryons_effect="Aucun",
-        baryons_params = {},
+        baryons_params={},
         delta=200,
         Mmin=13,
         Mmax=15,
@@ -237,7 +229,7 @@ class My_Tinker08(My_MassFunction):
             kmax=kmax,
             Ncamb=Ncamb,
         )
-        
+
         self.delta = delta
         ## Paramètres de la fonction f ##
         self._alpha = None
@@ -245,37 +237,41 @@ class My_Tinker08(My_MassFunction):
         self._a = None
         self._b = None
         self._c = None
+        self._A0 = 0.1858659
+        self._a0 = 1.466904
+        self._b0 = 2.571104
+        self._c0 = 1.193958
 
     @property
     def alpha(self):
         if self._alpha is None:
             self._alpha = 10 ** (-((0.75 / np.log10(self.delta / 75)) ** 1.2))
         return self._alpha
-    
+
     @property
     def A(self):
         if self._A is None:
-            self._A = 0.1858659 * (1 + self.z) ** (-0.14)
+            self._A = self._A0 * (1 + self.z) ** (-0.14)
         return self._A
-    
+
     @property
     def a(self):
         if self._a is None:
-            self._a = 1.466904 * (1 + self.z) ** (-0.06)
+            self._a = self._a0 * (1 + self.z) ** (-0.06)
         return self._a
-    
+
     @property
     def b(self):
         if self._b is None:
-            self._b = 2.571104 * (1 + self.z) ** (-self.alpha)
+            self._b = self._b0 * (1 + self.z) ** (-self.alpha)
         return self._b
-    
+
     @property
     def c(self):
         if self._c is None:
-            self._c = 1.193958
+            self._c = self._c0
         return self._c
-    
+
     @property
     def sigma(self):
         if self._sigma is None:
@@ -310,7 +306,7 @@ class My_Tinker08(My_MassFunction):
             derivee = np.gradient(ln_sigma, self.m)
             self._dndm = self.fsigma * self.rho_m_Masse / self.m * np.abs(derivee)
         return self._dndm
-    
+
     def set_z(self, z):
         self.z = z
         self._Pk = None
@@ -324,8 +320,7 @@ class My_Tinker08(My_MassFunction):
         self._a = None
         self._b = None
         self._c = None
-    
-    
+
     # @property
     # def number_count(self, N, zmax):
     #     # On intègre dndm sur M puis sur z
@@ -340,7 +335,8 @@ class My_Tinker08(My_MassFunction):
     #         res[i] = intg.trapz(L_intgs, L_z)
     #     return res
 
-def get_number_count(cosmo_params, N, zmax, Ncamb, resolution_z, p=lambda x,y:1):
+
+def get_number_count(cosmo_params, N, zmax, Ncamb, resolution_z, p=lambda x, y: 1):
     """
     Number count as a function of z.
 
@@ -358,29 +354,39 @@ def get_number_count(cosmo_params, N, zmax, Ncamb, resolution_z, p=lambda x,y:1)
     mf = My_Tinker08(z=0, cosmo_params=cosmo_params, Ncamb=Ncamb)
     # On intègre dndm sur M puis sur z
     res = np.zeros(N)
-    intgs_sur_m = np.zeros(N+1) # On inclut les 2 bornes de l'intervalle considéré, d'où le +1
-    for i in range(N+1):    # A chaque point, on le relie au point précédent par un segment et on calcule l'intégrale de la courbe ainsi créée
+    intgs_sur_m = np.zeros(
+        N + 1
+    )  # On inclut les 2 bornes de l'intervalle considéré, d'où le +1
+    for i in range(
+        N + 1
+    ):  # A chaque point, on le relie au point précédent par un segment et on calcule l'intégrale de la courbe ainsi créée
         z = zmax * i / N
         mf.set_z(z)
-        intgs_sur_m[i] = intg.trapz(mf.dndm*p(mf.m,z), mf.m)
+        intgs_sur_m[i] = intg.trapz(mf.dndm * p(mf.m, z), mf.m)
         if i >= 1:
-            fonction_interpolee = np.interp(np.linspace(z-zmax/N, z, resolution_z, endpoint = False), [z-zmax/N, z], intgs_sur_m[i-1:i+1])      # On relie les 2 points par une droite
-            res[i-1] = intg.trapz(fonction_interpolee, np.linspace(z-zmax/N, z, resolution_z, endpoint = False))
+            fonction_interpolee = np.interp(
+                np.linspace(z - zmax / N, z, resolution_z, endpoint=False),
+                [z - zmax / N, z],
+                intgs_sur_m[i - 1 : i + 1],
+            )  # On relie les 2 points par une droite
+            res[i - 1] = intg.trapz(
+                fonction_interpolee,
+                np.linspace(z - zmax / N, z, resolution_z, endpoint=False),
+            )
     # intgs_sur_m = np.interp(np.linspace(0, zmax, resolution_z, endpoint = False), np.linspace(0, zmax, N, endpoint = False), intgs_sur_m)
     # for i in range(N):
     #     z = zmax * i / N
-    return np.linspace(0, zmax, N, endpoint = False), res
+    return np.linspace(0, zmax, N, endpoint=False), res
 
 
 def calc_chi2(data, model, std):
-    return np.sum((data - model)**2 / std**2)
-
+    return np.sum((data - model) ** 2 / std**2)
 
 
 def find_best_values(prefix):
     try:
-        L_pars = np.loadtxt(prefix+"pars.csv")
-        L_chi2 = np.loadtxt(prefix+"chi2.csv")
+        L_pars = np.loadtxt(prefix + "pars.csv")
+        L_chi2 = np.loadtxt(prefix + "chi2.csv")
     except FileNotFoundError:
         print("File not found. Please run MCMC first.")
         return None
@@ -388,10 +394,16 @@ def find_best_values(prefix):
     return L_pars[i]
 
 
-
-
-class Study():
-    def __init__(self, N_z, zmax, computedpars, knownpars = cosmo_params, Ncamb=Ncamb, resolution_z=resolution_z): 
+class Study:
+    def __init__(
+        self,
+        N_z,
+        zmax,
+        computedpars,
+        knownpars=cosmo_params,
+        Ncamb=Ncamb,
+        resolution_z=resolution_z,
+    ):
         """
         Initializes the study.
         Args:
@@ -400,32 +412,37 @@ class Study():
             computedpars (list[str]): list of the names of the parameters to compute
             knownpars (dict, optional): Permet d'avoir une valeurs pour les paramètres cosmologiques fixés. Peut contenir aussi des paramètres non fixés. Defaults to cosmo_params.
         """
-        self.z = np.linspace(0, zmax, N_z, endpoint = False)
+        self.z = np.linspace(0, zmax, N_z, endpoint=False)
         self.N_z = N_z
-        self.Ncamb=Ncamb
+        self.Ncamb = Ncamb
         self.zmax = zmax
         self.resolution_z = resolution_z
         self.computedpars = computedpars
         self.knownpars = knownpars
-        self.cosmo_params = {"Om0": None, "Ob0": None, "H0": None, "ns": None, "As": None}
+        self.cosmo_params = {
+            "Om0": None,
+            "Ob0": None,
+            "H0": None,
+            "ns": None,
+            "As": None,
+        }
         for c in self.knownpars:
             self.cosmo_params[c] = self.knownpars[c]
         self._data = None
         self._std = None
-        
-        self.h = knownpars["H0"] / 100        
+
+        self.h = knownpars["H0"] / 100
         self.Asmin = 1e-9
         self.Asmax = 3e-9
         # 0.1 = omch2min = Odm0min * h**2 = (Omm0min - Ob0) * h**2
-        self.Om0min = 0.1/(self.h**2) + knownpars["Ob0"]
-        self.Om0max = 0.15/(self.h**2) + knownpars["Ob0"]
-        
+        self.Om0min = 0.1 / (self.h**2) + knownpars["Ob0"]
+        self.Om0max = 0.15 / (self.h**2) + knownpars["Ob0"]
+
         self._thetai = None
         self._stepfactor = None
-        
+
         self._p = None  # Fonction p(M,z) pour la fonction get_number_count
-    
-    
+
     # def calc_number_count(self, cosmo_params):
     #     mf = My_Tinker08(z=0, cosmo_params=cosmo_params)
     #     # On intègre dndm sur M puis sur z
@@ -439,55 +456,64 @@ class Study():
     #             L_intgs[j] = intg.trapz(mf.dndm, mf.m)
     #         res[i] = intg.trapz(L_intgs, L_z)
     #     self._number_count = res
-    
-    
+
     def create_artificial_data(self, cosmo_params):
-        _, self._data = get_number_count(cosmo_params, self.N_z, self.zmax, self.Ncamb, self.resolution_z, p=self.p)
+        _, self._data = get_number_count(
+            cosmo_params, self.N_z, self.zmax, self.Ncamb, self.resolution_z, p=self.p
+        )
         self._std = 0.1 * self._data
-    
+
     @property
     def data(self):
         if self._data is None:
-            raise ValueError("No data found. Please run create_artificial_data or provide real data.")
+            raise ValueError(
+                "No data found. Please run create_artificial_data or provide real data."
+            )
         return self._data
-    
+
     @property
     def std(self):
         if self._std is None:
-            raise ValueError("No data found. Please run create_artificial_data or provide real data.")
+            raise ValueError(
+                "No data found. Please run create_artificial_data or provide real data."
+            )
         return self._std
 
     @property
     def thetai(self):
         if self._thetai is None:
-            raise ValueError("No initial guess for the parameters. Please run MCMC or set_tetai first.")
+            raise ValueError(
+                "No initial guess for the parameters. Please run MCMC or set_tetai first."
+            )
         return self._thetai
-    
+
     def set_thetai(self, thetai):
         self._thetai = thetai
-    
+
     @property
     def stepfactor(self):
         if self._stepfactor is None:
-            raise ValueError("No step factor for the parameters. Please run MCMC or set_stepfactor first.")
+            raise ValueError(
+                "No step factor for the parameters. Please run MCMC or set_stepfactor first."
+            )
         return self._stepfactor
-    
+
     @property
     def p(self):
         if self._p is None:
             raise ValueError("No function p(M,z) found. Please run set_p first.")
         return self._p
-    
+
     def set_stepfactor(self, stepfactor):
         self._stepfactor = stepfactor
-    
+
     def set_p(self, p):
         self._p = p
-        
+
     def update_params(self, theta):
         for i in range(len(theta)):
             self.cosmo_params[self.computedpars[i]] = theta[i]
-            
+
     def theta_is_valid(self, theta):
         for i in range(len(theta)):
             if self.computedpars[i] == "Om0":
@@ -497,11 +523,13 @@ class Study():
                 if theta[i] < self.Asmin or theta[i] > self.Asmax:
                     return False
         return True
-    
+
     def cut_model(self):
         pass
-    
-    def calc_params(self, theta_i, N, step, plot=False, L_pars_prec=None, L_chi2_prec=None):
+
+    def calc_params(
+        self, theta_i, N, step, plot=False, L_pars_prec=None, L_chi2_prec=None
+    ):
         """
         Computes the parameters.
         Args:
@@ -514,53 +542,69 @@ class Study():
             `L_pars[:,j]` contains the values of the parameter j for each iteration. (so the tab is tall but not very large)
         """
         if len(theta_i) == 2:
-            assert self.computedpars == ["Om0", "As"] and self.Om0min < theta_i[0] and theta_i[0] < self.Om0max and self.Asmin < theta_i[1] and theta_i[1] < self.Asmax
+            assert (
+                self.computedpars == ["Om0", "As"]
+                and self.Om0min < theta_i[0]
+                and theta_i[0] < self.Om0max
+                and self.Asmin < theta_i[1]
+                and theta_i[1] < self.Asmax
+            )
         if len(theta_i) == 1 and self.computedpars == ["Om0"]:
             assert self.Om0min < theta_i[0] and theta_i[0] < self.Om0max
         if len(theta_i) == 1 and self.computedpars == ["As"]:
             assert self.Asmin < theta_i[0] and theta_i[0] < self.Asmax
-        i = 0       # Pour la boucle while
+        i = 0  # Pour la boucle while
         if self._data is None:
-            raise ValueError("No data to fit. Please run create_artificial_data or provide real data.")
-        L_pars = np.zeros((N,len(theta_i)))
+            raise ValueError(
+                "No data to fit. Please run create_artificial_data or provide real data."
+            )
+        L_pars = np.zeros((N, len(theta_i)))
         L_chi2 = np.zeros(N)
-        if L_pars_prec is not None:     # Si on veut continuer une chaîne
+        if L_pars_prec is not None:  # Si on veut continuer une chaîne
             theta_i = L_pars_prec[-1]
-            L_pars = np.concatenate((L_pars_prec[:-1], L_pars))  # On enlève le dernier élément de L_pars_prec pour ne pas le rajouter deux fois
+            L_pars = np.concatenate(
+                (L_pars_prec[:-1], L_pars)
+            )  # On enlève le dernier élément de L_pars_prec pour ne pas le rajouter deux fois
             L_chi2 = np.concatenate((L_chi2_prec[:-1], L_chi2))  # Idem
-            i = len(L_pars_prec)-1        # On commence à l'indice suivant
+            i = len(L_pars_prec) - 1  # On commence à l'indice suivant
             N = len(L_pars)
         self.update_params(theta_i)
         theta_prec = np.copy(theta_i)
         print(theta_prec)
-        _, model = get_number_count(self.cosmo_params, self.N_z, self.zmax, self.Ncamb, self.resolution_z, p=self.p)
+        _, model = get_number_count(
+            self.cosmo_params,
+            self.N_z,
+            self.zmax,
+            self.Ncamb,
+            self.resolution_z,
+            p=self.p,
+        )
         chi2_prec = calc_chi2(self.data, model, self.std)
         print(chi2_prec)
         L_pars[i] = theta_prec
         L_chi2[i] = chi2_prec
-        
+
         if plot:
-            fig, axs = plt.subplots(2,2)
-            axs[0,1].axis('off')
-            axOm = axs[0,0]
+            fig, axs = plt.subplots(2, 2)
+            axs[0, 1].axis("off")
+            axOm = axs[0, 0]
             axOm.set_ylabel(r"$\chi_2$")
-            axtot = axs[1,0]
+            axtot = axs[1, 0]
             axtot.set_xlabel(r"$\Omega_m$")
             axtot.set_ylabel(r"$A_s$")
-            axAs = axs[1,1]
+            axAs = axs[1, 1]
             axAs.set_xlabel(r"$\chi_2$")
-            lineOm, = axOm.plot(L_pars[:1,0], L_chi2[:1], 'o-')
-            linetot, = axtot.plot(L_pars[:1,0], L_pars[:1,1], 'o-')
-            lineAs, = axAs.plot(L_chi2[:1], L_pars[:1,1], 'o-')
-            
-            axOm.plot(L_pars[0,0], L_chi2[0], 'ro')
-            axtot.plot(L_pars[0,0], L_pars[0,1], 'ro')
-            axAs.plot(L_chi2[0], L_pars[0,1], 'ro')
-            
+            (lineOm,) = axOm.plot(L_pars[:1, 0], L_chi2[:1], "o-")
+            (linetot,) = axtot.plot(L_pars[:1, 0], L_pars[:1, 1], "o-")
+            (lineAs,) = axAs.plot(L_chi2[:1], L_pars[:1, 1], "o-")
+
+            axOm.plot(L_pars[0, 0], L_chi2[0], "ro")
+            axtot.plot(L_pars[0, 0], L_pars[0, 1], "ro")
+            axAs.plot(L_chi2[0], L_pars[0, 1], "ro")
+
             plt.ion()
             plt.show()
-            
-        
+
         burning = True
         i += 1
         try:
@@ -569,21 +613,28 @@ class Study():
                 theta_new = np.random.normal(theta_prec, step)
                 print(theta_new)
                 self.update_params(theta_new)
-                _, model = get_number_count(self.cosmo_params, self.N_z, self.zmax, self.Ncamb, self.resolution_z, p=self.p)
+                _, model = get_number_count(
+                    self.cosmo_params,
+                    self.N_z,
+                    self.zmax,
+                    self.Ncamb,
+                    self.resolution_z,
+                    p=self.p,
+                )
                 chi2_new = calc_chi2(self.data, model, self.std)
                 print(chi2_new)
                 x = np.random.uniform()
-                if x < chi2_prec/chi2_new and self.theta_is_valid(theta_new):
+                if x < chi2_prec / chi2_new and self.theta_is_valid(theta_new):
                     theta_prec = np.copy(theta_new)
                     chi2_prec = chi2_new
                     print("Kept !")
                     L_pars[i] = theta_prec
                     L_chi2[i] = chi2_prec
                     if plot:
-                        lineOm.set_data(L_pars[:i+1,0], L_chi2[:i+1])
-                        linetot.set_data(L_pars[:i+1,0], L_pars[:i+1,1])
-                        lineAs.set_data(L_chi2[:i+1], L_pars[:i+1,1])
-                        
+                        lineOm.set_data(L_pars[: i + 1, 0], L_chi2[: i + 1])
+                        linetot.set_data(L_pars[: i + 1, 0], L_pars[: i + 1, 1])
+                        lineAs.set_data(L_chi2[: i + 1], L_pars[: i + 1, 1])
+
                         axOm.relim()
                         axOm.autoscale_view()
                         axtot.relim()
@@ -594,58 +645,74 @@ class Study():
                         fig.canvas.flush_events()
                     i += 1
                 # Si les nouveaux paramètres ne sont pas retenus, on ne fait strictement rien (on n'incrémente même pas i)
-                    
+
                 if i >= N:
                     burning = False
         finally:
             return L_pars[:i], L_chi2[:i]
-    
-    
-    def MCMC(self,N,stepfactor,thetai,plot,add=True,newpos=False):
+
+    def MCMC(self, N, stepfactor, thetai, plot, add=True, newpos=False):
         """
         `add` indique si on ajoute les données à celles déjà existantes (quand elles existent) ou bien si on les écrase
         """
         # Enregistrement de thetai et stepfactor
         self._thetai = thetai
         self._stepfactor = stepfactor
-        
+
         # Création du nom du fichier
         car = f"{stepfactor}"
         if add:
             car += "__add"
-         
+
         # On regarde si on peut reprendre une chaîne
-        if add and os.path.exists(f'data/{car}__pars.csv') and os.path.exists(f'data/{car}__chi2.csv'):
+        if (
+            add
+            and os.path.exists(f"data/{car}__pars.csv")
+            and os.path.exists(f"data/{car}__chi2.csv")
+        ):
             print("File found !")
-            L_pars_prec = np.loadtxt(f'data/{car}__pars.csv')
-            L_chi2_prec = np.loadtxt(f'data/{car}__chi2.csv')
+            L_pars_prec = np.loadtxt(f"data/{car}__pars.csv")
+            L_chi2_prec = np.loadtxt(f"data/{car}__chi2.csv")
         # Sinon on initialise les listes
         else:
             L_pars_prec = None
             L_chi2_prec = None
-            
-            
+
         # s = Study(N_z,zmax, computedpars, knownpars = cosmo_params, Ncamb=Ncamb)
-        
-        step = stepfactor*thetai
+
+        step = stepfactor * thetai
 
         if newpos:
             print("New starting position")
             # On rajoute thetai à L_pars_prec et le chi2 associé dans L_chi2_prec
-            L_pars_prec = np.append(L_pars_prec, [thetai], axis = 0)
+            L_pars_prec = np.append(L_pars_prec, [thetai], axis=0)
             self.update_params(thetai)
-            L_chi2_prec = np.append(L_chi2_prec, calc_chi2(self.data, get_number_count(self.cosmo_params, self.N_z, self.zmax, self.Ncamb, self.resolution_z, p=self.p)[1], self.std))  # On calcule le chi2 pour thetai
-        L_pars, L_chi2 = self.calc_params(thetai, N, step, plot, L_pars_prec=L_pars_prec, L_chi2_prec=L_chi2_prec)
+            L_chi2_prec = np.append(
+                L_chi2_prec,
+                calc_chi2(
+                    self.data,
+                    get_number_count(
+                        self.cosmo_params,
+                        self.N_z,
+                        self.zmax,
+                        self.Ncamb,
+                        self.resolution_z,
+                        p=self.p,
+                    )[1],
+                    self.std,
+                ),
+            )  # On calcule le chi2 pour thetai
+        L_pars, L_chi2 = self.calc_params(
+            thetai, N, step, plot, L_pars_prec=L_pars_prec, L_chi2_prec=L_chi2_prec
+        )
 
-
-        car = f"{stepfactor}"        # On stocke dans un nouveau fichier vu qu'on a plus d'itérations
+        car = f"{stepfactor}"  # On stocke dans un nouveau fichier vu qu'on a plus d'itérations
         if add:
             car += "__add"
-        
-        np.savetxt(f'data/{car}__pars.csv', L_pars)
-        np.savetxt(f'data/{car}__chi2.csv', L_chi2)
-        
-    
+
+        np.savetxt(f"data/{car}__pars.csv", L_pars)
+        np.savetxt(f"data/{car}__chi2.csv", L_chi2)
+
     def get_approximate_number_count(self, prefix):
         """Computes the number count with the best values of the parameters given by MCMC.
 
@@ -654,20 +721,18 @@ class Study():
         """
         theta = find_best_values(prefix)
         self.update_params(theta)
-        return get_number_count(self.cosmo_params, self.N_z, self.zmax, self.Ncamb, self.resolution_z, p=self.p)[1]
-        
-            
-
-
-    
-
-
+        return get_number_count(
+            self.cosmo_params,
+            self.N_z,
+            self.zmax,
+            self.Ncamb,
+            self.resolution_z,
+            p=self.p,
+        )[1]
 
 
 # N_z = 5
 # zmax = 1
-
-
 
 
 # s = Study(N_z,zmax, ["Om0","As"], knownpars = cosmo_params)
