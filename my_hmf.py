@@ -336,13 +336,13 @@ class My_Tinker08(My_MassFunction):
     #     return res
 
 
-def get_number_count(cosmo_params, N, zmax, Ncamb, resolution_z, p=lambda x, y: 1):
+def get_number_count(cosmo_params, N_z, zmax, Ncamb, resolution_z, p=lambda x, y: 1, N_m = 1):
     """
     Number count as a function of z.
 
     Args:
         cosmo_params (dict): _description_
-        N (int): number of points for the redshifts
+        N_z (int): number of points for the redshifts
         zmax (float): maximum redshift
         Ncamb (int): number of points for the mass
         resolution_z (int): number of points for the redshifts in each bin, for the integration
@@ -352,34 +352,63 @@ def get_number_count(cosmo_params, N, zmax, Ncamb, resolution_z, p=lambda x, y: 
         (float list, float list): redshifts and number count
     """
     mf = My_Tinker08(z=0, cosmo_params=cosmo_params, Ncamb=Ncamb)
+    
+    #########################################################################################################################
+    # if N_m == None:
+    #     # On intègre dndm sur M puis sur z
+    #     res = np.zeros(N_z)
+    #     intgs_sur_m = np.zeros(N_z+1)  # On inclut les 2 bornes de l'intervalle considéré, d'où le +1
+    #     for i in range(N_z+1):  # A chaque point, on le relie au point précédent par un segment et on calcule l'intégrale de la courbe ainsi créée
+    #         z = zmax * i / N_z
+    #         mf.set_z(z)
+    #         intgs_sur_m[i] = intg.trapz(mf.dndm * p(mf.m, z), mf.m)
+    #         if i >= 1:
+    #             fonction_interpolee = np.interp(
+    #                 np.linspace(z - zmax / N_z, z, resolution_z, endpoint=False),
+    #                 [z - zmax / N_z, z],
+    #                 intgs_sur_m[i - 1 : i + 1],
+    #             )  # On relie les 2 points par une droite
+    #             res[i-1] = intg.trapz(
+    #                 fonction_interpolee,
+    #                 np.linspace(z - zmax / N_z, z, resolution_z, endpoint=False),
+    #             )
+                
+    #########################################################################################################################            
+    # else:
     # On intègre dndm sur M puis sur z
-    res = np.zeros(N)
-    intgs_sur_m = np.zeros(
-        N + 1
-    )  # On inclut les 2 bornes de l'intervalle considéré, d'où le +1
-    for i in range(
-        N + 1
-    ):  # A chaque point, on le relie au point précédent par un segment et on calcule l'intégrale de la courbe ainsi créée
-        z = zmax * i / N
+    res = np.zeros((N_m,N_z)) # Lignes: m. Colonnes: z
+    numbercount_ponctuel = np.zeros((N_m,N_z+1))  # Intégrales de dndm sur m pour N_z+1 redshifts donnés. On inclut les 2 bornes de l'intervalle considéré, d'où le +1
+    for j in range(N_z+1):  # A chaque point, on le relie au point précédent par un segment et on calcule l'intégrale de la courbe ainsi créée
+        z = zmax * j / N_z
         mf.set_z(z)
-        intgs_sur_m[i] = intg.trapz(mf.dndm * p(mf.m, z), mf.m)
-        if i >= 1:
-            fonction_interpolee = np.interp(
-                np.linspace(z - zmax / N, z, resolution_z, endpoint=False),
-                [z - zmax / N, z],
-                intgs_sur_m[i - 1 : i + 1],
-            )  # On relie les 2 points par une droite
-            res[i - 1] = intg.trapz(
-                fonction_interpolee,
-                np.linspace(z - zmax / N, z, resolution_z, endpoint=False),
-            )
-    # intgs_sur_m = np.interp(np.linspace(0, zmax, resolution_z, endpoint = False), np.linspace(0, zmax, N, endpoint = False), intgs_sur_m)
-    # for i in range(N):
-    #     z = zmax * i / N
-    return np.linspace(0, zmax, N, endpoint=False), res
+        for i in range(N_m):
+            resolution_m = len(mf.m)
+            pas = resolution_m // N_m
+            m = mf.m[i*pas:(i+1)*pas]
+            dndm = mf.dndm[i*pas:(i+1)*pas]
+            numbercount_ponctuel[i,j] = intg.trapz(dndm * p(m, z), m)
+    # Pour chaque ligne (ie pour chaque bin de masse), on fait comme en 1D
+    for i in range(N_m):
+        for j in range(N_z+1):
+            if j >= 1:
+                fonction_interpolee = np.interp(
+                    np.linspace(z - zmax / N_z, z, resolution_z, endpoint=False),
+                    [z - zmax / N_z, z],
+                    numbercount_ponctuel[i,j - 1 : j + 1],
+                )  # On relie les 2 points par une droite
+                res[i,j-1] = intg.trapz(
+                    fonction_interpolee,
+                    np.linspace(z - zmax / N_z, z, resolution_z, endpoint=False),
+                )
+    if N_m == 1:
+        res = res[0]
+    return res
+
+
 
 
 def calc_chi2(data, model, std):
+    """Data, model and std must have ssame dimension. They can be both 1D or 2D"""
     return np.sum((data - model) ** 2 / std**2)
 
 
@@ -403,6 +432,7 @@ class Study:
         knownpars=cosmo_params,
         Ncamb=Ncamb,
         resolution_z=resolution_z,
+        N_m = 1,
     ):
         """
         Initializes the study.
@@ -414,6 +444,7 @@ class Study:
         """
         self.z = np.linspace(0, zmax, N_z, endpoint=False)
         self.N_z = N_z
+        self.N_m = N_m
         self.Ncamb = Ncamb
         self.zmax = zmax
         self.resolution_z = resolution_z
@@ -458,7 +489,7 @@ class Study:
     #     self._number_count = res
 
     def create_artificial_data(self, cosmo_params):
-        _, self._data = get_number_count(
+        self._data = get_number_count(
             cosmo_params, self.N_z, self.zmax, self.Ncamb, self.resolution_z, p=self.p
         )
         self._std = 0.1 * self._data
@@ -531,7 +562,7 @@ class Study:
         self, theta_i, N, step, plot=False, L_pars_prec=None, L_chi2_prec=None
     ):
         """
-        Computes the parameters.
+        Computes the parameters using MCMC.
         Args:
             theta_i (list[str]): Initial guess for the parameters to compute
             N (int): Number of iterations
@@ -571,7 +602,7 @@ class Study:
         self.update_params(theta_i)
         theta_prec = np.copy(theta_i)
         print(theta_prec)
-        _, model = get_number_count(
+        model = get_number_count(
             self.cosmo_params,
             self.N_z,
             self.zmax,
@@ -613,7 +644,7 @@ class Study:
                 theta_new = np.random.normal(theta_prec, step)
                 print(theta_new)
                 self.update_params(theta_new)
-                _, model = get_number_count(
+                model = get_number_count(
                     self.cosmo_params,
                     self.N_z,
                     self.zmax,
@@ -660,7 +691,11 @@ class Study:
         self._stepfactor = stepfactor
 
         # Création du nom du fichier
-        car = f"{stepfactor}"
+        if self.N_m == 1:
+            car = f"{stepfactor}"
+        else:
+            car = f"{stepfactor}__{self.N_m}"
+            
         if add:
             car += "__add"
 
@@ -698,17 +733,13 @@ class Study:
                         self.Ncamb,
                         self.resolution_z,
                         p=self.p,
-                    )[1],
+                    ),
                     self.std,
                 ),
             )  # On calcule le chi2 pour thetai
         L_pars, L_chi2 = self.calc_params(
             thetai, N, step, plot, L_pars_prec=L_pars_prec, L_chi2_prec=L_chi2_prec
         )
-
-        car = f"{stepfactor}"  # On stocke dans un nouveau fichier vu qu'on a plus d'itérations
-        if add:
-            car += "__add"
 
         np.savetxt(f"data/{car}__pars.csv", L_pars)
         np.savetxt(f"data/{car}__chi2.csv", L_chi2)
@@ -728,7 +759,7 @@ class Study:
             self.Ncamb,
             self.resolution_z,
             p=self.p,
-        )[1]
+        )
 
 
 # N_z = 5
