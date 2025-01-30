@@ -123,8 +123,9 @@ class My_MassFunction:
     def get_k_Pk_camb(self):
         pars = camb.CAMBparams()
         pars.set_cosmology(
-            H0=self.H0classique, ombh2=self.Ob0 * self.h**2, omch2=self.Odm0 * self.h**2
-        )
+            H0=self.H0classique, ombh2=self.Ob0 * self.h**2, omch2=self.Odm0 * self.h**2, nnu=3.046, standard_neutrino_neff=3.046, TCMB=2.7255, neutrino_hierarchy="degenerate",
+        )   # Les nombres écrits ici sont les valeurs par défaut de hmf, c'est juste pour le debug
+        # pars.WantTransfer = True  # Ils le font dans le code de hmf
         pars.InitPower.set_params(ns=self.ns, As=self.As)
         pars.set_matter_power(redshifts=[self.z], kmax=2.0)
 
