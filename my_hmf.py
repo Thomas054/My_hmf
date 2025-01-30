@@ -59,7 +59,9 @@ if BCemuOK:
         "deta": 0.14,
     }
 
-cosmo_params = {"H0": 70, "Om0": 0.294, "Ob0": 0.022 / 0.7**2, "ns": 0.965, "As": 2e-9}
+# cosmo_params = {"H0": 70, "Om0": 0.294, "Ob0": 0.022 / 0.7**2, "ns": 0.965, "As": 2e-9}
+cosmo_params = {"H0": 70, "Om0": 0.294, "Ob0": 0.022 / 0.7**2, "ns": 0.965, "sigma_8": 0.8159}
+
 
 
 def check_low_k(lnk, lnT, lnkmin):
@@ -96,7 +98,8 @@ class My_MassFunction:
         self.Odm0 = self.Om0 - self.Ob0
         # self.Odm0 = 0.122 / 0.7**2
         self.ns = cosmo_params["ns"]
-        self.As = cosmo_params["As"]
+        # self.As = cosmo_params["As"]
+        self.sigma_8_param = cosmo_params["sigma_8"]
         self.H0classique = cosmo_params["H0"]
         self.H0 = (
             self.H0classique * 1000 / Mparsec_to_m
@@ -127,75 +130,104 @@ class My_MassFunction:
         self._sigma_8 = None
         self._fsigma = None
         self._dndm = None
+        
+        
+        self.result_transfers = None
 
     @property
     def m(self):
         return self._m
 
-    def get_k_Pk_camb(self):
-        pars = camb.CAMBparams()
-        pars.set_cosmology(
-            H0=self.H0classique, ombh2=self.Ob0 * self.h**2, omch2=self.Odm0 * self.h**2, nnu=3.046, standard_neutrino_neff=3.046, TCMB=2.7255, neutrino_hierarchy="degenerate",
-        )   # Les nombres écrits ici sont les valeurs par défaut de hmf, c'est juste pour le debug
-        # pars.WantTransfer = True  # Ils le font dans le code de hmf
-        pars.InitPower.set_params(ns=self.ns, As=self.As)
-        pars.set_matter_power(redshifts=[self.z], kmax=2.0)
-
-        # Linear spectra
-        pars.NonLinear = model.NonLinear_none
-        results = camb.get_results(pars)
-        k, _, Pk = results.get_matter_power_spectrum(
-            minkh=self.kmin, maxkh=self.kmax, npoints=self.Ncamb
-        )
-        return k, Pk[0]
-        
-        ###################################################################
-        
+    
+    def set_k_Pk_camb_unnormalized(self):
         # pars = camb.CAMBparams()
         # pars.set_cosmology(
         #     H0=self.H0classique, ombh2=self.Ob0 * self.h**2, omch2=self.Odm0 * self.h**2, nnu=3.046, standard_neutrino_neff=3.046, TCMB=2.7255, neutrino_hierarchy="degenerate",
         # )   # Les nombres écrits ici sont les valeurs par défaut de hmf, c'est juste pour le debug
-        # pars.WantTransfer = True  # Nécessaire pour avoir la fonction de transfert
-        
-        # result_transfers = camb.get_transfer_functions(pars)    # NOTE : Le code d'exemple de CAMB utilise une autre fonction ici
-        # trans = result_transfers.get_matter_transfer_data()
-        # k = trans.transfer_data[0,:,0] / self.h     # kh/h
-        # T = np.log(trans.transfer_data[[0, 6], :, 0])
+        # # pars.WantTransfer = True  # Ils le font dans le code de hmf
+        # pars.InitPower.set_params(ns=self.ns, As=self.As)
+        # pars.set_matter_power(redshifts=[self.z], kmax=2.0)
 
+        # # Linear spectra
+        # pars.NonLinear = model.NonLinear_none
+        # results = camb.get_results(pars)
+        # k, _, Pk = results.get_matter_power_spectrum(
+        #     minkh=self.kmin, maxkh=self.kmax, npoints=self.Ncamb
+        # )
+        # return k, Pk[0]
         
-        # # lnk = np.log(k)
+        ###################################################################
+        
+        pars = camb.CAMBparams()
+        pars.set_cosmology(
+            H0=self.H0classique, ombh2=self.Ob0 * self.h**2, omch2=self.Odm0 * self.h**2, nnu=3.046, standard_neutrino_neff=3.046, TCMB=2.7255, neutrino_hierarchy="degenerate",
+        )   # Les nombres écrits ici sont les valeurs par défaut de hmf, c'est juste pour le debug
+        pars.WantTransfer = True  # Nécessaire pour avoir la fonction de transfert
+        
+        self.result_transfers = camb.get_transfer_functions(pars)    # NOTE : Le code d'exemple de CAMB utilise une autre fonction ici
+        trans = self.result_transfers.get_matter_transfer_data()
+        k = trans.transfer_data[0,:,0] / self.h     # kh/h
+        T = np.log(trans.transfer_data[[0, 6], :, 0])
+        # print("mon T ", T)
+        
+        k = k[(k >= self.kmin) & (k <= self.kmax)]      # On ne garde que les valeurs de k qui nous intéressent
+        lnk = np.log(k)
         # lnT = T[1, :]
-        # # print(lnk)
-        # # print(T)
+        # print(lnk)
+        # print(lnT)
         
-        # # if lnk[0] < T[0, 0]:
-        # #     lnkout, lnT = check_low_k(T[0, :], T[1, :], lnk[0])
-        # # else:
-        # #     lnkout = T[0, :]
-        # #     lnT = T[1, :]
         
-        # # lnT -= lnT[0]
-        # # res = spline(lnkout, lnT, k=1)(lnk)
-        # # return 1
+        if lnk[0] < T[0, 0]:
+            lnkout, lnT = check_low_k(T[0, :], T[1, :], lnk[0])
+        else:
+            lnkout = T[0, :]
+            lnT = T[1, :]
         
-        # Pk = k**self.ns * np.exp(lnT) ** 2
-        # return k, Pk
+        
+        lnT -= lnT[0]
+        # print("mon lnT ", lnT)
+        lnT = np.interp(lnk,lnkout,lnT)
+        # print(" mon lnT ", lnT)
+        
+        
+        
+        Pk = k**self.ns * np.exp(lnT) ** 2
+        self._k = k
+        self._Pk_camb = Pk
 
+    def set_k_Pk_camb(self):
+        self.set_k_Pk_camb_unnormalized()
+        unnormalized_sigma_8 = self.sigma_8
+        normalization = self.sigma_8_param / unnormalized_sigma_8
+        self._Pk_camb *= normalization**2
+        
+        ## Growth factor (pour z != 0)
+        growth0 = self.result_transfers.get_redshift_evolution(1.0, 0.0, ["delta_tot"])[0][0]
+        
+        growth = (
+            self.result_transfers.get_redshift_evolution(
+                1.0, self.z, ["delta_tot"]
+            ).flatten()
+            / growth0
+        )
+        if len(growth) == 1:
+            growth = growth[0]
+            
+        self._Pk_camb *= growth**2
+        # On réinitialise les attributs qui n'étaient pas normalisés
+        self._sigma = None
+        self._sigma_8 = None
 
     @property
     def k(self):
         if self._k is None:
-            k, Pk = self.get_k_Pk_camb()
-            self._k = k
-            self._Pk_camb = Pk
+            self.set_k_Pk_camb()
         return self._k
 
     @property
     def Pk_camb(self):
         if self._Pk_camb is None:
-            k, Pk = self.get_k_Pk_camb()
-            self._k = k
-            self._Pk_camb = Pk
+            self.set_k_Pk_camb()
         return self._Pk_camb
 
     @property
@@ -823,19 +855,16 @@ class Study:
 # print(f"Résultat : {res}")
 
 
-# from hmf import MassFunction
+from hmf import MassFunction
 
 
-# cosmo_params_hmf = {
-#     "H0": cosmo_params["H0"],
-#     "Om0": cosmo_params["Om0"],
-#     "Ob0": cosmo_params["Ob0"]
-# }
+cosmo_params_hmf = {
+    "H0": cosmo_params["H0"],
+    "Om0": cosmo_params["Om0"],
+    "Ob0": cosmo_params["Ob0"]
+}
 
 
 
-# my_mf = My_Tinker08(z=0, cosmo_params=cosmo_params, Ncamb=Ncamb)
-# mf = MassFunction(z=0.2, cosmo_params=cosmo_params_hmf, hmf_model="Tinker08")
-# temp = mf.power
-
-# # my_mf.get_k_Pk_camb()
+my_mf = My_Tinker08(z=0, cosmo_params=cosmo_params, Ncamb=Ncamb)
+mf = MassFunction(z=0, cosmo_params=cosmo_params_hmf, hmf_model="Tinker08", lnk_max = 0, lnk_min = np.log(1e-4))
