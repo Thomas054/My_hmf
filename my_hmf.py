@@ -1,6 +1,5 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from hmf import MassFunction
 import scipy.integrate as intg
 import os
 
@@ -61,6 +60,19 @@ if BCemuOK:
     }
 
 cosmo_params = {"H0": 70, "Om0": 0.294, "Ob0": 0.022 / 0.7**2, "ns": 0.965, "As": 2e-9}
+
+
+def check_low_k(lnk, lnT, lnkmin):
+    start = 0
+    for i in range(len(lnk) - 1):
+        if abs((lnT[i + 1] - lnT[i]) / (lnk[i + 1] - lnk[i])) < 0.0001:
+            start = i
+            break
+    lnT = lnT[start:-1]
+    lnk = lnk[start:-1]
+
+    lnk[0] = lnkmin
+    return lnk, lnT
 
 
 class My_MassFunction:
@@ -136,6 +148,39 @@ class My_MassFunction:
             minkh=self.kmin, maxkh=self.kmax, npoints=self.Ncamb
         )
         return k, Pk[0]
+        
+        ###################################################################
+        
+        # pars = camb.CAMBparams()
+        # pars.set_cosmology(
+        #     H0=self.H0classique, ombh2=self.Ob0 * self.h**2, omch2=self.Odm0 * self.h**2, nnu=3.046, standard_neutrino_neff=3.046, TCMB=2.7255, neutrino_hierarchy="degenerate",
+        # )   # Les nombres écrits ici sont les valeurs par défaut de hmf, c'est juste pour le debug
+        # pars.WantTransfer = True  # Nécessaire pour avoir la fonction de transfert
+        
+        # result_transfers = camb.get_transfer_functions(pars)    # NOTE : Le code d'exemple de CAMB utilise une autre fonction ici
+        # trans = result_transfers.get_matter_transfer_data()
+        # k = trans.transfer_data[0,:,0] / self.h     # kh/h
+        # T = np.log(trans.transfer_data[[0, 6], :, 0])
+
+        
+        # # lnk = np.log(k)
+        # lnT = T[1, :]
+        # # print(lnk)
+        # # print(T)
+        
+        # # if lnk[0] < T[0, 0]:
+        # #     lnkout, lnT = check_low_k(T[0, :], T[1, :], lnk[0])
+        # # else:
+        # #     lnkout = T[0, :]
+        # #     lnT = T[1, :]
+        
+        # # lnT -= lnT[0]
+        # # res = spline(lnkout, lnT, k=1)(lnk)
+        # # return 1
+        
+        # Pk = k**self.ns * np.exp(lnT) ** 2
+        # return k, Pk
+
 
     @property
     def k(self):
@@ -776,3 +821,21 @@ class Study:
 # print("\n")
 # print(f"Le vrai : {cosmo_params['Om0']}")
 # print(f"Résultat : {res}")
+
+
+# from hmf import MassFunction
+
+
+# cosmo_params_hmf = {
+#     "H0": cosmo_params["H0"],
+#     "Om0": cosmo_params["Om0"],
+#     "Ob0": cosmo_params["Ob0"]
+# }
+
+
+
+# my_mf = My_Tinker08(z=0, cosmo_params=cosmo_params, Ncamb=Ncamb)
+# mf = MassFunction(z=0.2, cosmo_params=cosmo_params_hmf, hmf_model="Tinker08")
+# temp = mf.power
+
+# # my_mf.get_k_Pk_camb()
