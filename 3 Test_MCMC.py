@@ -32,7 +32,7 @@ Ncamb = 1000
 N = 10000  # Nombre d'itérations de MCMC
 thetai = np.array([0.31, 2.1e-9])
 # thetai = np.array([1.3e-9])
-stepfactor = 0.05
+stepfactor = 0.051
 
 s = Study(N_z, zmax, computedpars, knownpars=cosmo_params, Ncamb=Ncamb, N_m=N_m)
 s.set_p(p)

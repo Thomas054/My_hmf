@@ -408,7 +408,7 @@ def get_number_count(cosmo_params, N_z, zmax, Ncamb, resolution_z, p=lambda x, y
 
 
 def calc_chi2(data, model, std):
-    """Data, model and std must have ssame dimension. They can be both 1D or 2D"""
+    """Data, model and std must have same dimension. They can be both 1D or 2D"""
     return np.sum((data - model) ** 2 / std**2)
 
 
@@ -655,7 +655,7 @@ class Study:
                 chi2_new = calc_chi2(self.data, model, self.std)
                 print(chi2_new)
                 x = np.random.uniform()
-                if x < chi2_prec / chi2_new and self.theta_is_valid(theta_new):
+                if np.log(x) < chi2_prec - chi2_new and self.theta_is_valid(theta_new):
                     theta_prec = np.copy(theta_new)
                     chi2_prec = chi2_new
                     print("Kept !")
